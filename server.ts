@@ -259,12 +259,12 @@ const getInitialData = (): DBStructure => ({
     { id: "n2", title: "Stock Refill List", content: "Order aluminum sheets and primer by Friday. Check current metal rates from Apex Steel.", isPinned: true, isCompleted: false, category: "Inventory" as any, createdAt: "2026-06-30T11:00:00.000Z" }
   ],
   settings: {
-    companyName: "VSR Enterprises",
-    logoUrl: "",
+    companyName: "Pavan Enterprises",
+    logoUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTDqjlC1GmAQ71cveIBWJUQbgaI23as2k9VstUR_Pbujx7Vf0kVtguzY04&s=10",
     address: "Plot No. 12, Industrial Area, Sector 4, Gandhinagar, Gujarat, India - 382010",
     phone: "+91 98765 43210",
-    email: "owner@vsrledger.com",
-    website: "www.vsrenterprises.in",
+    email: "owner@pavanledger.com",
+    website: "www.pavanenterprises.in",
     bankName: "State Bank of India",
     bankAccount: "300412891223",
     bankIfsc: "SBIN0001043",
@@ -273,7 +273,7 @@ const getInitialData = (): DBStructure => ({
     currency: "₹"
   },
   logs: [
-    { id: "l1", timestamp: "2026-06-30T09:12:00.000Z", action: "System Launch", module: "Auth", details: "VSR Ledger engine rebooted successfully" },
+    { id: "l1", timestamp: "2026-06-30T09:12:00.000Z", action: "System Launch", module: "Auth", details: "Pavan Ledger engine rebooted successfully" },
     { id: "l2", timestamp: "2026-06-30T10:05:00.000Z", action: "Create Invoice", module: "Invoices", details: "Invoice VSR-2026-004 generated for R.K. Brothers - Amount ₹4,200.00" },
     { id: "l3", timestamp: "2026-06-30T11:22:00.000Z", action: "Log Payment", module: "Invoices", details: "Payment of ₹4,200.00 logged against invoice VSR-2026-004" }
   ]
@@ -1976,7 +1976,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[VSR Ledger Engine] Active & Serving on http://localhost:${PORT}`);
+    console.log(`[Pavan Ledger Engine] Active & Serving on http://localhost:${PORT}`);
   });
 }
 

@@ -78,7 +78,7 @@ export default function ReportsManager({
         inv.status
       ];
     });
-    downloadCSV("VSR_Sales_Report.csv", headers, rows);
+    downloadCSV("Pavan_Sales_Report.csv", headers, rows);
   };
 
   // 2. Export Buyers
@@ -94,7 +94,7 @@ export default function ReportsManager({
       String(b.balance),
       b.status
     ]);
-    downloadCSV("VSR_Buyers_Receivable_Report.csv", headers, rows);
+    downloadCSV("Pavan_Buyers_Receivable_Report.csv", headers, rows);
   };
 
   // 3. Export Suppliers
@@ -110,7 +110,7 @@ export default function ReportsManager({
       String(s.outstandingPayable),
       s.status
     ]);
-    downloadCSV("VSR_Suppliers_Payable_Report.csv", headers, rows);
+    downloadCSV("Pavan_Suppliers_Payable_Report.csv", headers, rows);
   };
 
   // 4. Export GST
@@ -128,7 +128,7 @@ export default function ReportsManager({
         String(inv.taxAmount)
       ];
     });
-    downloadCSV("VSR_GST_Liabilities_Report.csv", headers, rows);
+    downloadCSV("Pavan_GST_Liabilities_Report.csv", headers, rows);
   };
 
   // 5. Export Profit
@@ -140,7 +140,7 @@ export default function ReportsManager({
       String(netProfit),
       `${profitMarginPercent}%`
     ]];
-    downloadCSV("VSR_Business_Profit_Report.csv", headers, rows);
+    downloadCSV("Pavan_Business_Profit_Report.csv", headers, rows);
   };
 
   // 6. Export Materials
@@ -156,7 +156,7 @@ export default function ReportsManager({
       String(m.currentStock),
       String(m.minStockLevel)
     ]);
-    downloadCSV("VSR_Materials_Inventory_Report.csv", headers, rows);
+    downloadCSV("Pavan_Materials_Inventory_Report.csv", headers, rows);
   };
 
   const handlePrint = () => {
@@ -184,7 +184,7 @@ export default function ReportsManager({
         <!DOCTYPE html>
         <html>
         <head>
-          <title>VSR Ledger Report - ${activeTab.toUpperCase()}</title>
+          <title>Pavan Ledger Report - ${activeTab.toUpperCase()}</title>
           <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
           <style>
             body { font-family: sans-serif; background: white; color: #1c1917; padding: 40px; }
@@ -196,7 +196,7 @@ export default function ReportsManager({
         </head>
         <body>
           <div class="max-w-4xl mx-auto">
-            <h1 class="text-xl font-bold mb-2 uppercase tracking-wider">VSR LEDGER - ${activeTab.toUpperCase()} REPORT</h1>
+            <h1 class="text-xl font-bold mb-2 uppercase tracking-wider">PAVAN LEDGER - ${activeTab.toUpperCase()} REPORT</h1>
             <p class="text-xs text-gray-500 mb-4">Date Generated: ${new Date().toLocaleDateString()}</p>
             ${tempDiv.innerHTML}
           </div>
@@ -214,7 +214,7 @@ export default function ReportsManager({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `VSR_${activeTab}_report.html`;
+      a.download = `Pavan_${activeTab}_report.html`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

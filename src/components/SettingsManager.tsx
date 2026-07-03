@@ -157,7 +157,7 @@ export default function SettingsManager({
                 required
                 value={bName}
                 onChange={e => setBName(e.target.value)}
-                placeholder="e.g., VSR Enterprises" 
+                placeholder="e.g., Pavan Enterprises" 
                 className="w-full px-2.5 py-1.5 border border-border-sand rounded-xl bg-card-soft/40 focus:ring-1 focus:ring-primary focus:outline-none font-bold text-charcoal"
               />
             </div>
@@ -231,7 +231,7 @@ export default function SettingsManager({
             <div>
               <p className="font-extrabold text-primary-dark">Tax compliance (CGST & SGST Split Invoice Engine)</p>
               <p className="text-[10px] mt-0.5 text-stone font-semibold leading-normal font-sans">
-                By entering GSTIN details and your default GST tax, VSR Ledger dynamically generates compliant invoices split equally into CGST & SGST indices. Ensure your billing complies with national commerce rules.
+                By entering GSTIN details and your default GST tax, Pavan Ledger dynamically generates compliant invoices split equally into CGST & SGST indices. Ensure your billing complies with national commerce rules.
               </p>
             </div>
           </div>
@@ -331,13 +331,13 @@ export default function SettingsManager({
         <div className="glass-card p-4 space-y-3">
           <div className="flex items-center gap-2">
             <Landmark className="w-4 h-4 text-primary" />
-            <h4 className="font-extrabold text-charcoal text-xs uppercase tracking-wider font-display">VSR Remittance Details</h4>
+            <h4 className="font-extrabold text-charcoal text-xs uppercase tracking-wider font-display">Pavan Remittance Details</h4>
           </div>
           <div className="space-y-1.5 text-stone font-extrabold text-[10px]">
             <p>Bank: <span className="font-extrabold text-charcoal font-mono">State Bank of India</span></p>
             <p>A/c Number: <span className="font-extrabold text-charcoal font-mono">300412891223</span></p>
             <p>IFSC Code: <span className="font-extrabold text-charcoal font-mono">SBIN0001043</span></p>
-            <p>UPI Handle: <span className="font-extrabold text-charcoal font-mono">vsrenterprises@upi</span></p>
+            <p>UPI Handle: <span className="font-extrabold text-charcoal font-mono">pavanenterprises@upi</span></p>
           </div>
           <div className="p-2 bg-card-soft/40 border border-border-sand/20 rounded-xl text-stone font-bold leading-normal text-[9px]">
             Remittance values are hardcoded in tax templates to speed up client processing. Modify this inside invoices layout.

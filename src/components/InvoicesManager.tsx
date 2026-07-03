@@ -822,7 +822,7 @@ Thank you for your business!`;
             <div className="flex-1 p-8 bg-card-soft/20 max-h-[420px] overflow-y-auto print-card font-sans no-scrollbar">
               <div className="flex justify-between items-start border-b border-border-sand/30 pb-4">
                 <div>
-                  <h2 className="text-xl font-extrabold font-display uppercase tracking-wider text-charcoal">VSR ENTERPRISES</h2>
+                  <h2 className="text-xl font-extrabold font-display uppercase tracking-wider text-charcoal">PAVAN ENTERPRISES</h2>
                   <p className="text-[9px] text-stone mt-0.5 leading-normal max-w-xs font-bold">
                     Plot No. 12, Industrial Area, Sector 4, Gandhinagar, Gujarat, India - 382010
                   </p>
@@ -908,7 +908,7 @@ Thank you for your business!`;
                   <div className="bg-primary/5 p-2.5 rounded-2xl border border-border-sand/20 max-w-sm font-sans">
                     <p className="font-extrabold text-primary-dark uppercase mb-0.5">Remittance Bank details</p>
                     <p className="font-bold text-charcoal">Bank: State Bank of India | A/c: 300412891223</p>
-                    <p className="font-bold text-charcoal">IFSC Code: SBIN0001043 | UPI ID: vsrenterprises@upi</p>
+                    <p className="font-bold text-charcoal">IFSC Code: SBIN0001043 | UPI ID: pavanenterprises@upi</p>
                   </div>
 
                   {qrCodeUrl && (

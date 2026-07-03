@@ -24,7 +24,7 @@ import SettingsManager from "./components/SettingsManager";
 export default function App() {
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem("vsr_auth") === "true";
+    return localStorage.getItem("pavan_auth") === "true";
   });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -73,11 +73,11 @@ export default function App() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [notes, setNotes] = useState<DashboardNote[]>([]);
   const [settings, setSettings] = useState<BusinessSettings>({
-    companyName: "VSR Enterprises",
+    companyName: "Pavan Enterprises",
     address: "Plot No. 12, Industrial Area, Sector 4, Gandhinagar, Gujarat, India - 382010",
     phone: "+91 98765 43210",
-    email: "info@vsrenterprises.com",
-    website: "vsrenterprises.com",
+    email: "info@pavanenterprises.com",
+    website: "pavanenterprises.com",
     bankName: "State Bank of India",
     bankAccount: "300412891223",
     bankIfsc: "SBIN0001043",
@@ -102,13 +102,13 @@ export default function App() {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           if (active) {
-            localStorage.setItem("vsr_auth", "true");
+            localStorage.setItem("pavan_auth", "true");
             setIsAuthenticated(true);
             await fetchAllData();
           }
         } else {
           if (active) {
-            localStorage.removeItem("vsr_auth");
+            localStorage.removeItem("pavan_auth");
             setIsAuthenticated(false);
             setIsLoading(false);
           }
@@ -116,7 +116,7 @@ export default function App() {
       } catch (e) {
         console.error("Auth session sync failed:", e);
         if (active) {
-          localStorage.removeItem("vsr_auth");
+          localStorage.removeItem("pavan_auth");
           setIsAuthenticated(false);
           setIsLoading(false);
         }
@@ -259,7 +259,7 @@ export default function App() {
       if (error) {
         setAuthError(error.message);
       } else if (data.session) {
-        localStorage.setItem("vsr_auth", "true");
+        localStorage.setItem("pavan_auth", "true");
         setIsAuthenticated(true);
         setAuthError("");
       } else {
@@ -280,7 +280,7 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
-    localStorage.removeItem("vsr_auth");
+    localStorage.removeItem("pavan_auth");
     setIsAuthenticated(false);
   };
 
@@ -662,7 +662,7 @@ export default function App() {
       <div className="min-h-screen bg-background-milky flex flex-col items-center justify-center font-sans text-xs">
         <div className="p-8 text-center glass-card rounded-2xl max-w-sm space-y-4">
           <RefreshCw className="w-8 h-8 text-primary animate-spin mx-auto" />
-          <p className="font-bold text-charcoal uppercase tracking-widest text-[10px]">Verifying VSR Ledger Vault...</p>
+          <p className="font-bold text-charcoal uppercase tracking-widest text-[10px]">Verifying Pavan Ledger Vault...</p>
           <p className="text-stone font-semibold leading-relaxed">Reading persistent local disk database blocks. Please wait.</p>
         </div>
       </div>
@@ -677,13 +677,13 @@ export default function App() {
           {/* Header */}
           <div className="p-6 bg-primary text-card-soft text-center flex flex-col items-center justify-center space-y-2">
             <img 
-              src="https://static.vecteezy.com/system/resources/previews/009/602/347/non_2x/vsr-circle-letter-logo-design-with-circle-and-ellipse-shape-vsr-ellipse-letters-with-typographic-style-the-three-initials-form-a-circle-logo-vsr-circle-emblem-abstract-monogram-letter-mark-vector.jpg" 
-              alt="VSR Logo"
+              src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTDqjlC1GmAQ71cveIBWJUQbgaI23as2k9VstUR_Pbujx7VstUR_Pbujx7Vf0kVtguzY04&s=10" 
+              alt="Pavan Logo"
               referrerPolicy="no-referrer"
               className="w-14 h-14 rounded-full border border-card-soft/20 shadow-md object-cover"
             />
             <div>
-              <h1 className="text-xl font-bold font-display uppercase tracking-widest text-card-soft">VSR LEDGER</h1>
+              <h1 className="text-xl font-bold font-display uppercase tracking-widest text-card-soft">PAVAN LEDGER</h1>
               <p className="text-[10px] text-card-soft/80 font-medium">Secure Admin Single-User Micro ERP portal</p>
             </div>
           </div>
@@ -712,7 +712,7 @@ export default function App() {
                   required
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="admin@vsrenterprises.com" 
+                  placeholder="admin@pavanenterprises.com" 
                   className="w-full pl-9 pr-3 py-2 border border-border-sand bg-card-soft/60 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-charcoal text-xs"
                 />
               </div>
@@ -789,15 +789,15 @@ export default function App() {
             <div className="flex items-center gap-2.5 overflow-hidden">
               <div className="bg-card-soft p-1 rounded-xl text-primary shadow-sm font-bold shrink-0 transition-transform hover:scale-[1.05] hover:rotate-3 duration-200 overflow-hidden">
                 <img 
-                  src="https://static.vecteezy.com/system/resources/previews/009/602/347/non_2x/vsr-circle-letter-logo-design-with-circle-and-ellipse-shape-vsr-ellipse-letters-with-typographic-style-the-three-initials-form-a-circle-logo-vsr-circle-emblem-abstract-monogram-letter-mark-vector.jpg" 
-                  alt="VSR Logo"
+                  src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTDqjlC1GmAQ71cveIBWJUQbgaI23as2k9VstUR_Pbujx7Vf0kVtguzY04&s=10" 
+                  alt="Pavan Logo"
                   referrerPolicy="no-referrer"
                   className="w-6 h-6 rounded-lg object-cover"
                 />
               </div>
               {(!isCollapsed || isMobileOpen) && (
                 <div className="min-w-0 flex-1 animate-fade-in">
-                  <h2 className="font-extrabold tracking-widest text-[12px] font-display uppercase text-card-soft">VSR LEDGER</h2>
+                  <h2 className="font-extrabold tracking-widest text-[12px] font-display uppercase text-card-soft">PAVAN LEDGER</h2>
                   <p className="text-[9px] text-card-soft/75 font-medium truncate">{settings.companyName}</p>
                 </div>
               )}
@@ -992,7 +992,7 @@ export default function App() {
                  activeTab === "settings" ? "Ledger Settings" : "System Logs"}
               </h1>
               <span className="hidden sm:inline px-2 py-0.5 bg-white/10 text-card-soft font-extrabold rounded-full text-[9px] uppercase">
-                VSR ERP
+                PAVAN ERP
               </span>
             </div>
           </div>

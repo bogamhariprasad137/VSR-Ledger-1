@@ -563,7 +563,7 @@ export default function QuotationsManager({
             <div className="flex-1 p-8 bg-card-soft/20 max-h-[550px] overflow-y-auto print-card font-sans no-scrollbar">
               <div className="flex justify-between items-start border-b border-border-sand/30 pb-5">
                 <div>
-                  <h2 className="text-xl font-extrabold font-display uppercase tracking-wider text-charcoal">VSR ENTERPRISES</h2>
+                  <h2 className="text-xl font-extrabold font-display uppercase tracking-wider text-charcoal">PAVAN ENTERPRISES</h2>
                   <p className="text-[10px] text-stone mt-1 max-w-xs font-bold leading-relaxed">
                     Plot No. 12, Industrial Area, Sector 4, Gandhinagar, Gujarat, India - 382010
                   </p>
