@@ -476,7 +476,11 @@ export default function App() {
     }
     localStorage.removeItem("pavan_auth");
     setIsAuthenticated(false);
+    
+    // Force a clean application redirect and reload to reset all states cleanly and avoid crashes
+    window.location.href = "/";
   };
+
 
   // --- API Mutators ---
   const saveLogs = async (action: string, module: string, details: string) => {
