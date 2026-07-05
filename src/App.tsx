@@ -162,34 +162,205 @@ export default function App() {
   }, [isAuthenticated]);
 
   const fetchAllData = async () => {
+    if (!supabase) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     try {
-      const [buyersRes, buyerLedgerRes, suppliersRes, materialsRes, quotesRes, invoicesRes, notesRes, settingsRes, logsRes] = await Promise.all([
-        fetch("/api/buyers").then(r => r.json()),
-        fetch("/api/buyer-ledger").then(r => r.json()),
-        fetch("/api/suppliers").then(r => r.json()),
-        fetch("/api/materials").then(r => r.json()),
-        fetch("/api/quotations").then(r => r.json()),
-        fetch("/api/invoices").then(r => r.json()),
-        fetch("/api/notes").then(r => r.json()),
-        fetch("/api/settings").then(r => r.json()),
-        fetch("/api/logs").then(r => r.json())
+      const [
+        buyersRes,
+        buyerLedgerRes,
+        suppliersRes,
+        materialsRes,
+        quotesRes,
+        invoicesRes,
+        notesRes,
+        settingsRes,
+        logsRes,
+        attachmentsRes
+      ] = await Promise.all([
+        supabase.from("buyers").select("*"),
+        supabase.from("buyer_ledger").select("*"),
+        supabase.from("suppliers").select("*"),
+        supabase.from("materials").select("*"),
+        supabase.from("quotations").select("*, quotation_items(*)"),
+        supabase.from("invoices").select("*, invoice_items(*), payments(*)"),
+        supabase.from("dashboard_notes").select("*"),
+        supabase.from("profiles").select("*").limit(1),
+        supabase.from("activity_logs").select("*").order("timestamp", { ascending: false }).limit(200),
+        supabase.from("invoice_attachments").select("*")
       ]);
 
-      setBuyers(buyersRes.buyers || []);
-      setBuyerLedgerEntries(buyerLedgerRes.ledger || []);
-      setSuppliers(suppliersRes.suppliers || []);
-      setMaterials(materialsRes.materials || []);
-      setQuotations(quotesRes.quotations || []);
-      setInvoices(invoicesRes.invoices || []);
-      setNotes(notesRes.notes || []);
-      if (settingsRes && settingsRes.settings) {
-        setSettings(settingsRes.settings);
-      }
-      setLogs(logsRes.logs || []);
+      const mappedBuyers = (buyersRes.data || []).map((b: any) => ({
+        id: b.id,
+        name: b.name,
+        contactPerson: b.contact_person || "",
+        phone: b.phone || "",
+        email: b.email || "",
+        address: b.address || "",
+        gstin: b.gstin || "",
+        status: b.is_active ? "active" : "inactive" as const,
+        balance: Number(b.balance || 0)
+      }));
 
-      // Build supplier ledger and stock logs
-      deriveSubLedgers(suppliersRes.suppliers || [], materialsRes.materials || [], invoicesRes.invoices || []);
+      const mappedBuyerLedger = (buyerLedgerRes.data || []).map((bl: any) => ({
+        id: bl.id,
+        buyerId: bl.buyer_id,
+        date: bl.date,
+        type: bl.type,
+        referenceId: bl.reference_id,
+        description: bl.description || "",
+        amount: Number(bl.amount || 0),
+        balanceAfter: Number(bl.balance_after || 0)
+      }));
+
+      const mappedSuppliers = (suppliersRes.data || []).map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        contactPerson: s.contact_person || "",
+        phone: s.phone || "",
+        email: s.email || "",
+        address: s.address || "",
+        gstin: s.gstin || "",
+        status: s.is_active ? "active" : "inactive" as const,
+        outstandingPayable: Number(s.outstanding_payable || 0)
+      }));
+
+      const mappedMaterials = (materialsRes.data || []).map((m: any) => ({
+        id: m.id,
+        name: m.name,
+        sku: m.id.substring(0, 8).toUpperCase(),
+        category: m.category || "General",
+        unit: m.uom || "Kgs",
+        defaultPurchaseRate: Number(m.default_purchase_rate || 0),
+        defaultSalesRate: Number(m.default_sales_rate || 0),
+        minStockLevel: Number(m.minimum_threshold || 0),
+        currentStock: Number(m.current_stock || 0)
+      }));
+
+      const mappedQuotations = (quotesRes.data || []).map((q: any) => ({
+        id: q.id,
+        quoteNumber: q.quote_number,
+        buyerId: q.buyer_id,
+        date: q.date,
+        dueDate: q.due_date || "",
+        subtotal: Number(q.subtotal || 0),
+        taxAmount: Number(q.tax_amount || 0),
+        total: Number(q.total || 0),
+        status: q.status.toLowerCase() as any,
+        notes: q.notes || "",
+        items: (q.quotation_items || []).map((it: any) => ({
+          materialId: it.material_id,
+          name: "Item",
+          quantity: Number(it.quantity || 1),
+          rate: Number(it.rate || 0),
+          amount: Number(it.amount || 0)
+        }))
+      }));
+
+      const attachmentsMap: Record<string, any[]> = {};
+      if (attachmentsRes.data) {
+        attachmentsRes.data.forEach((att: any) => {
+          const invId = att.invoice_id;
+          if (!attachmentsMap[invId]) attachmentsMap[invId] = [];
+          attachmentsMap[invId].push({
+            id: att.id,
+            name: att.file_name,
+            fileType: att.mime_type,
+            size: att.file_size,
+            base64Data: att.file_path,
+            uploadedAt: att.uploaded_at
+          });
+        });
+      }
+
+      const mappedInvoices = (invoicesRes.data || []).map((inv: any) => ({
+        id: inv.id,
+        invoiceNumber: inv.invoice_number,
+        buyerId: inv.buyer_id,
+        date: inv.date,
+        dueDate: inv.due_date || "",
+        subtotal: Number(inv.subtotal || 0),
+        taxAmount: Number(inv.tax_amount || 0),
+        total: Number(inv.total || 0),
+        balanceDue: Number(inv.total - inv.paid_amount),
+        status: inv.status === "Paid" ? "paid" : (inv.status === "Partially Paid" ? "partial" : "unpaid" as const),
+        notes: inv.notes || "",
+        transport: inv.transport || null,
+        attachments: attachmentsMap[inv.id] || [],
+        items: (inv.invoice_items || []).map((it: any) => ({
+          materialId: it.material_id,
+          name: "Item",
+          quantity: Number(it.quantity || 1),
+          rate: Number(it.rate || 0),
+          taxRate: Number(it.tax_rate || 18),
+          amount: Number(it.subtotal || 0),
+          taxAmount: Number(it.tax_amount || 0),
+          total: Number(it.total || 0),
+          transportationAmount: Number(it.transportation_amount || 0)
+        })),
+        payments: (inv.payments || []).map((p: any) => ({
+          id: p.id,
+          date: p.date,
+          amount: Number(p.amount || 0),
+          method: p.payment_method,
+          referenceNo: p.reference_number || "",
+          notes: p.remarks || ""
+        }))
+      }));
+
+      const mappedNotes = (notesRes.data || []).map((n: any) => ({
+        id: n.id,
+        title: n.title,
+        content: n.description || "",
+        isPinned: n.is_pinned || false,
+        isCompleted: n.is_completed || false,
+        category: n.category || "General",
+        createdAt: n.created_at
+      }));
+
+      if (settingsRes.data && settingsRes.data[0]) {
+        const s = settingsRes.data[0];
+        setSettings({
+          companyName: s.company_name,
+          address: s.address,
+          phone: s.phone,
+          email: s.email,
+          website: "",
+          gstIn: s.gstin,
+          bankName: s.bank_name,
+          bankAccount: s.bank_account,
+          bankIfsc: s.bank_ifsc,
+          upiId: s.upi_id || "",
+          qrCodeUrl: s.qr_code_url || "",
+          logoUrl: s.company_logo_url || "",
+          invoiceFooter: s.invoice_footer || "",
+          termsConditions: s.terms_conditions || "",
+          currency: s.currency || "₹",
+          defaultGstRate: Number(s.default_gst_rate || 18)
+        });
+      }
+
+      const mappedLogs = (logsRes.data || []).map((l: any) => ({
+        id: l.id,
+        timestamp: l.timestamp,
+        action: l.action,
+        module: l.module,
+        referenceId: l.reference_id || "",
+        details: l.details || ""
+      }));
+
+      setBuyers(mappedBuyers);
+      setBuyerLedgerEntries(mappedBuyerLedger);
+      setSuppliers(mappedSuppliers);
+      setMaterials(mappedMaterials);
+      setQuotations(mappedQuotations);
+      setInvoices(mappedInvoices);
+      setNotes(mappedNotes);
+      setLogs(mappedLogs);
+
+      deriveSubLedgers(mappedSuppliers, mappedMaterials, mappedInvoices);
     } catch (err) {
       console.error("Failed to fetch server database:", err);
     } finally {
@@ -238,7 +409,7 @@ export default function App() {
           date: inv.date,
           type: "remove",
           quantity: it.quantity,
-          description: `Dispatched for Invoice ${inv.invoiceNumber}`
+          description: `Dispatched on Sales Billing: ${inv.invoiceNumber}`
         });
       });
     });
@@ -246,56 +417,33 @@ export default function App() {
     setStockAdjustments(adjustments);
   };
 
-  // Auth Submit
-  const handleResetPassword = async () => {
-    if (!email.trim()) {
-      setAuthError("Please enter your email address first.");
-      setResetSuccess("");
-      return;
-    }
-    setIsResetting(true);
-    setAuthError("");
-    setResetSuccess("");
-    try {
-      if (supabase) {
-        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-          redirectTo: window.location.origin
-        });
-        if (error) {
-          setAuthError(error.message);
-        } else {
-          setResetSuccess("Password reset instructions sent to your email.");
-        }
-      } else {
-        setAuthError("Password reset is not available in local/offline mode.");
-      }
-    } catch (err: any) {
-      console.error(err);
-      setAuthError(err.message || "An unexpected network error occurred.");
-    } finally {
-      setIsResetting(false);
+  const verifyAndCheckLocalSession = () => {
+    const localAuth = localStorage.getItem("pavan_auth");
+    if (localAuth === "true") {
+      setIsAuthenticated(true);
+      fetchAllData();
+    } else {
+      setIsLoading(false);
     }
   };
 
-  const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (password: string, email: string) => {
     setIsLoggingIn(true);
     setAuthError("");
     try {
       if (supabase) {
         try {
           const { data, error } = await supabase.auth.signInWithPassword({
-            email: email.trim(),
+            email,
             password
           });
-          if (data.session) {
+          if (error) {
+            console.warn("Supabase Auth failed, checking local credentials:", error.message);
+          } else if (data.session) {
             localStorage.setItem("pavan_auth", "true");
             setIsAuthenticated(true);
             setAuthError("");
-            setIsLoggingIn(false);
             return;
-          } else if (error) {
-            console.warn("Supabase login rejected, checking local fallback:", error.message);
           }
         } catch (supErr) {
           console.warn("Supabase connection failed, checking local fallback:", supErr);
@@ -323,7 +471,6 @@ export default function App() {
       if (supabase) {
         await supabase.auth.signOut();
       }
-      await fetch("/api/auth/logout", { method: "POST" });
     } catch (e) {
       console.error(e);
     }
@@ -333,19 +480,25 @@ export default function App() {
 
   // --- API Mutators ---
   const saveLogs = async (action: string, module: string, details: string) => {
+    if (!supabase) return;
     try {
-      const newLog: Omit<ActivityLog, "id" | "timestamp"> = {
+      const newLog = {
         action,
         module,
-        details
+        details,
+        timestamp: new Date().toISOString()
       };
-      const res = await fetch("/api/logs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newLog)
-      });
-      const updatedLogsRes = await res.json();
-      setLogs(updatedLogsRes.logs || []);
+      await supabase.from("activity_logs").insert([newLog]);
+      
+      const { data: logsData } = await supabase.from("activity_logs").select("*").order("timestamp", { ascending: false }).limit(200);
+      setLogs((logsData || []).map((l: any) => ({
+        id: l.id,
+        timestamp: l.timestamp,
+        action: l.action,
+        module: l.module,
+        referenceId: l.reference_id || "",
+        details: l.details || ""
+      })));
     } catch (e) {
       console.error(e);
     }
@@ -361,8 +514,26 @@ export default function App() {
     currency: string;
     qrCodeUrl?: string;
   }) => {
+    if (!supabase) return;
     try {
       const payload = {
+        company_name: updatedSettings.businessName,
+        address: updatedSettings.businessAddress,
+        phone: updatedSettings.businessPhone,
+        gstin: updatedSettings.businessGstin,
+        default_gst_rate: updatedSettings.gstRate,
+        currency: updatedSettings.currency,
+        qr_code_url: updatedSettings.qrCodeUrl !== undefined ? updatedSettings.qrCodeUrl : settings.qrCodeUrl,
+        updated_at: new Date().toISOString()
+      };
+
+      await supabase.from("profiles").upsert({
+        id: "00000000-0000-0000-0000-000000000000",
+        ...payload
+      });
+
+      setSettings((prev: any) => ({
+        ...prev,
         companyName: updatedSettings.businessName,
         address: updatedSettings.businessAddress,
         phone: updatedSettings.businessPhone,
@@ -370,17 +541,7 @@ export default function App() {
         defaultGstRate: updatedSettings.gstRate,
         currency: updatedSettings.currency,
         qrCodeUrl: updatedSettings.qrCodeUrl !== undefined ? updatedSettings.qrCodeUrl : settings.qrCodeUrl
-      };
-
-      const res = await fetch("/api/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (data.settings) {
-        setSettings(data.settings);
-      }
+      }));
       saveLogs("Update", "Settings", "Updated global business parameters and tax ratios");
     } catch (e) {
       console.error(e);
@@ -389,16 +550,32 @@ export default function App() {
 
   // 2. Buyers CRUD
   const handleAddBuyer = async (buyerData: Omit<Buyer, "id">) => {
+    if (!supabase) return;
     try {
-      const res = await fetch("/api/buyers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buyerData)
-      });
-      
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Server error code ${res.status}`);
+      const newBuyerRow = {
+        name: buyerData.name,
+        contact_person: buyerData.contactPerson || "",
+        phone: buyerData.phone || "",
+        email: buyerData.email || "",
+        address: buyerData.address || "",
+        gstin: buyerData.gstin || "",
+        balance: Number(buyerData.balance) || 0,
+        is_active: buyerData.status !== "inactive"
+      };
+
+      const { data: inserted, error } = await supabase.from("buyers").insert([newBuyerRow]).select();
+      if (error) throw new Error(error.message);
+
+      if (inserted && inserted[0] && Number(buyerData.balance) !== 0) {
+        await supabase.from("buyer_ledger").insert([{
+          buyer_id: inserted[0].id,
+          date: new Date().toISOString().split("T")[0],
+          type: "opening",
+          reference_id: "opening",
+          amount: Number(buyerData.balance),
+          description: "Opening Ledger Balance",
+          balance_after: Number(buyerData.balance)
+        }]);
       }
 
       await fetchAllData();
@@ -406,21 +583,39 @@ export default function App() {
       showToast(`Successfully registered buyer: ${buyerData.name}`, "success");
     } catch (e: any) {
       console.error("Failed to add buyer:", e);
-      showToast(e.message || "Failed to add buyer. Please check server logs.", "error");
+      showToast(e.message || "Failed to add buyer.", "error");
     }
   };
 
   const handleUpdateBuyer = async (id: string, updates: Partial<Buyer>) => {
+    if (!supabase) return;
     try {
-      const res = await fetch(`/api/buyers/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates)
-      });
+      const { data: prevData } = await supabase.from("buyers").select("balance").eq("id", id).single();
+      const prevBalance = Number(prevData?.balance || 0);
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Server error code ${res.status}`);
+      const mappedUpdates: any = {};
+      if (updates.name !== undefined) mappedUpdates.name = updates.name;
+      if (updates.contactPerson !== undefined) mappedUpdates.contact_person = updates.contactPerson;
+      if (updates.phone !== undefined) mappedUpdates.phone = updates.phone;
+      if (updates.email !== undefined) mappedUpdates.email = updates.email;
+      if (updates.address !== undefined) mappedUpdates.address = updates.address;
+      if (updates.gstin !== undefined) mappedUpdates.gstin = updates.gstin;
+      if (updates.status !== undefined) mappedUpdates.is_active = updates.status !== "inactive";
+      if (updates.balance !== undefined) mappedUpdates.balance = Number(updates.balance);
+
+      const { error } = await supabase.from("buyers").update(mappedUpdates).eq("id", id);
+      if (error) throw new Error(error.message);
+
+      if (updates.balance !== undefined && Number(updates.balance) !== prevBalance) {
+        await supabase.from("buyer_ledger").insert([{
+          buyer_id: id,
+          date: new Date().toISOString().split("T")[0],
+          type: "opening",
+          reference_id: "adjustment",
+          amount: Number(updates.balance) - prevBalance,
+          description: `Manual balance reconciliation (Was: ${prevBalance}, Adjusted to: ${updates.balance})`,
+          balance_after: Number(updates.balance)
+        }]);
       }
 
       await fetchAllData();
@@ -433,13 +628,16 @@ export default function App() {
   };
 
   const handleDeleteBuyer = async (id: string) => {
+    if (!supabase) return;
     try {
-      const res = await fetch(`/api/buyers/${id}`, { method: "DELETE" });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Server error code ${res.status}`);
+      const { data: invs } = await supabase.from("invoices").select("id, total, paid_amount").eq("buyer_id", id);
+      const hasInvoices = invs?.some(inv => Number(inv.total) - Number(inv.paid_amount) > 0);
+      if (hasInvoices) {
+        throw new Error("Cannot delete buyer with pending outstanding balances.");
       }
+
+      const { error } = await supabase.from("buyers").delete().eq("id", id);
+      if (error) throw new Error(error.message);
 
       await fetchAllData();
       saveLogs("Delete", "Buyers", `Purged client account ID ${id}`);
@@ -452,12 +650,31 @@ export default function App() {
 
   // 3. Suppliers CRUD
   const handleAddSupplier = async (supData: Omit<Supplier, "id">) => {
+    if (!supabase) return;
     try {
-      const res = await fetch("/api/suppliers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(supData)
-      });
+      const newSup = {
+        name: supData.name,
+        contact_person: supData.contactPerson || "",
+        phone: supData.phone || "",
+        email: supData.email || "",
+        address: supData.address || "",
+        gstin: supData.gstin || "",
+        outstanding_payable: Number(supData.outstandingPayable) || 0,
+        is_active: supData.status !== "inactive"
+      };
+
+      const { data: inserted } = await supabase.from("suppliers").insert([newSup]).select();
+      if (inserted && inserted[0] && Number(supData.outstandingPayable) !== 0) {
+        await supabase.from("supplier_ledger").insert([{
+          supplier_id: inserted[0].id,
+          date: new Date().toISOString().split("T")[0],
+          type: "opening",
+          reference_id: "opening",
+          amount: Number(supData.outstandingPayable),
+          description: "Opening Purchase Balance Outstanding",
+          balance_after: Number(supData.outstandingPayable)
+        }]);
+      }
       await fetchAllData();
       saveLogs("Create", "Suppliers", `Registered raw material vendor ${supData.name}`);
     } catch (e) {
@@ -466,12 +683,35 @@ export default function App() {
   };
 
   const handleUpdateSupplier = async (id: string, updates: Partial<Supplier>) => {
+    if (!supabase) return;
     try {
-      const res = await fetch(`/api/suppliers/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates)
-      });
+      const { data: prevData } = await supabase.from("suppliers").select("outstanding_payable").eq("id", id).single();
+      const prevPayable = Number(prevData?.outstanding_payable || 0);
+
+      const mappedUpdates: any = {};
+      if (updates.name !== undefined) mappedUpdates.name = updates.name;
+      if (updates.contactPerson !== undefined) mappedUpdates.contact_person = updates.contactPerson;
+      if (updates.phone !== undefined) mappedUpdates.phone = updates.phone;
+      if (updates.email !== undefined) mappedUpdates.email = updates.email;
+      if (updates.address !== undefined) mappedUpdates.address = updates.address;
+      if (updates.gstin !== undefined) mappedUpdates.gstin = updates.gstin;
+      if (updates.status !== undefined) mappedUpdates.is_active = updates.status !== "inactive";
+      if (updates.outstandingPayable !== undefined) mappedUpdates.outstanding_payable = Number(updates.outstandingPayable);
+
+      await supabase.from("suppliers").update(mappedUpdates).eq("id", id);
+
+      if (updates.outstandingPayable !== undefined && Number(updates.outstandingPayable) !== prevPayable) {
+        await supabase.from("supplier_ledger").insert([{
+          supplier_id: id,
+          date: new Date().toISOString().split("T")[0],
+          type: "opening",
+          reference_id: "adjustment",
+          amount: Number(updates.outstandingPayable) - prevPayable,
+          description: `Manual outstanding ledger adjustment (Was: ${prevPayable}, Adjusted to: ${updates.outstandingPayable})`,
+          balance_after: Number(updates.outstandingPayable)
+        }]);
+      }
+
       await fetchAllData();
       saveLogs("Update", "Suppliers", `Modified supplier parameters for ${updates.name || id}`);
     } catch (e) {
@@ -480,8 +720,9 @@ export default function App() {
   };
 
   const handleDeleteSupplier = async (id: string) => {
+    if (!supabase) return;
     try {
-      const res = await fetch(`/api/suppliers/${id}`, { method: "DELETE" });
+      await supabase.from("suppliers").delete().eq("id", id);
       await fetchAllData();
       saveLogs("Delete", "Suppliers", `Removed vendor partner ID ${id}`);
     } catch (e) {
@@ -491,12 +732,28 @@ export default function App() {
 
   // 4. Material Inventory CRUD
   const handleAddMaterial = async (matData: Omit<Material, "id">) => {
+    if (!supabase) return;
     try {
-      const res = await fetch("/api/materials", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(matData)
-      });
+      const newMat = {
+        name: matData.name,
+        category: matData.category || "General",
+        uom: matData.unit || "Kgs",
+        default_purchase_rate: Number(matData.defaultPurchaseRate) || 0,
+        default_sales_rate: Number(matData.defaultSalesRate) || 0,
+        current_stock: Number(matData.currentStock) || 0,
+        minimum_threshold: Number(matData.minStockLevel) || 10
+      };
+
+      const { data: inserted } = await supabase.from("materials").insert([newMat]).select();
+      if (inserted && inserted[0] && Number(matData.currentStock) > 0) {
+        await supabase.from("inventory_transactions").insert([{
+          material_id: inserted[0].id,
+          date: new Date().toISOString().split("T")[0],
+          type: "add",
+          quantity: Number(matData.currentStock),
+          description: "Initial material creation stock setup"
+        }]);
+      }
       await fetchAllData();
       saveLogs("Create", "Inventory", `Added material ${matData.name} to catalogue`);
     } catch (e) {
@@ -505,12 +762,32 @@ export default function App() {
   };
 
   const handleUpdateMaterial = async (id: string, updates: Partial<Material>) => {
+    if (!supabase) return;
     try {
-      const res = await fetch(`/api/materials/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates)
-      });
+      const { data: prevData } = await supabase.from("materials").select("current_stock").eq("id", id).single();
+      const prevStock = Number(prevData?.current_stock || 0);
+
+      const mapped: any = {};
+      if (updates.name !== undefined) mapped.name = updates.name;
+      if (updates.category !== undefined) mapped.category = updates.category;
+      if (updates.unit !== undefined) mapped.uom = updates.unit;
+      if (updates.defaultPurchaseRate !== undefined) mapped.default_purchase_rate = Number(updates.defaultPurchaseRate);
+      if (updates.defaultSalesRate !== undefined) mapped.default_sales_rate = Number(updates.defaultSalesRate);
+      if (updates.minStockLevel !== undefined) mapped.minimum_threshold = Number(updates.minStockLevel);
+      if (updates.currentStock !== undefined) mapped.current_stock = Number(updates.currentStock);
+
+      await supabase.from("materials").update(mapped).eq("id", id);
+
+      if (updates.currentStock !== undefined && Number(updates.currentStock) !== prevStock) {
+        const diff = Number(updates.currentStock) - prevStock;
+        await supabase.from("inventory_transactions").insert([{
+          material_id: id,
+          date: new Date().toISOString().split("T")[0],
+          type: diff > 0 ? "add" : "remove",
+          quantity: Math.abs(diff),
+          description: `Direct manual stock catalog edit reconciliation (Was: ${prevStock}, Adjusted to: ${updates.currentStock})`
+        }]);
+      }
       await fetchAllData();
       saveLogs("Update", "Inventory", `Updated parameters for material catalog spec ${updates.name || id}`);
     } catch (e) {
@@ -519,8 +796,9 @@ export default function App() {
   };
 
   const handleDeleteMaterial = async (id: string) => {
+    if (!supabase) return;
     try {
-      const res = await fetch(`/api/materials/${id}`, { method: "DELETE" });
+      await supabase.from("materials").delete().eq("id", id);
       await fetchAllData();
       saveLogs("Delete", "Inventory", `Removed item ID ${id} from catalog`);
     } catch (e) {
@@ -529,12 +807,29 @@ export default function App() {
   };
 
   const handleAdjustStock = async (id: string, adj: { type: "add" | "remove" | "reconcile"; quantity: number; description: string }) => {
+    if (!supabase) return;
     try {
-      const res = await fetch(`/api/materials/${id}/adjust`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(adj)
-      });
+      const { data: current } = await supabase.from("materials").select("current_stock").eq("id", id).single();
+      const prevStock = Number(current?.current_stock || 0);
+      let newStock = prevStock;
+
+      if (adj.type === "add") {
+        newStock += Number(adj.quantity);
+      } else if (adj.type === "remove") {
+        newStock = Math.max(0, newStock - Number(adj.quantity));
+      } else if (adj.type === "reconcile") {
+        newStock = Number(adj.quantity);
+      }
+
+      await supabase.from("materials").update({ current_stock: newStock }).eq("id", id);
+      await supabase.from("inventory_transactions").insert([{
+        material_id: id,
+        date: new Date().toISOString().split("T")[0],
+        type: adj.type,
+        quantity: Number(adj.quantity),
+        description: adj.description || "Manual reconciliation adjustment"
+      }]);
+
       await fetchAllData();
       saveLogs("Adjustment", "Inventory", `Adjusted stock for item ${id}: ${adj.type} ${adj.quantity} units`);
     } catch (e) {
@@ -544,12 +839,35 @@ export default function App() {
 
   // 5. Quotation CRUD
   const handleAddQuotation = async (qData: Omit<Quotation, "id" | "quoteNumber">) => {
+    if (!supabase) return;
     try {
-      const res = await fetch("/api/quotations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(qData)
-      });
+      const subtotal = qData.items.reduce((sum, it) => sum + (Number(it.rate) * Number(it.quantity)), 0);
+      const taxAmount = Math.round(subtotal * (settings.defaultGstRate / 100));
+      const total = subtotal + taxAmount;
+
+      const { data: inserted, error } = await supabase.from("quotations").insert([{
+        buyer_id: qData.buyerId,
+        date: qData.date || new Date().toISOString().split("T")[0],
+        due_date: qData.dueDate || null,
+        subtotal,
+        tax_amount: taxAmount,
+        total,
+        status: "Draft",
+        notes: qData.notes || null
+      }]).select();
+      if (error) throw new Error(error.message);
+
+      if (inserted && inserted[0]) {
+        const itemRows = qData.items.map(it => ({
+          quotation_id: inserted[0].id,
+          material_id: it.materialId,
+          quantity: Number(it.quantity),
+          rate: Number(it.rate),
+          amount: Number(it.quantity) * Number(it.rate)
+        }));
+        await supabase.from("quotation_items").insert(itemRows);
+      }
+
       await fetchAllData();
       saveLogs("Create", "Quotations", "Drafted custom deal quotation sheet");
     } catch (e) {
@@ -558,12 +876,40 @@ export default function App() {
   };
 
   const handleUpdateQuotation = async (id: string, updates: Partial<Quotation>) => {
+    if (!supabase) return;
     try {
-      const res = await fetch(`/api/quotations/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates)
-      });
+      const statusMap: Record<string, string> = {
+        draft: "Draft",
+        sent: "Sent",
+        approved: "Approved",
+        declined: "Declined",
+        converted: "Converted"
+      };
+      const mapped: any = {};
+      if (updates.status !== undefined) mapped.status = statusMap[updates.status] || updates.status;
+      if (updates.notes !== undefined) mapped.notes = updates.notes;
+      if (updates.dueDate !== undefined) mapped.due_date = updates.dueDate;
+
+      if (updates.items !== undefined) {
+        const subtotal = updates.items.reduce((sum, it) => sum + (Number(it.rate) * Number(it.quantity)), 0);
+        const taxAmount = Math.round(subtotal * (settings.defaultGstRate / 100));
+        const total = subtotal + taxAmount;
+        mapped.subtotal = subtotal;
+        mapped.tax_amount = taxAmount;
+        mapped.total = total;
+
+        await supabase.from("quotation_items").delete().eq("quotation_id", id);
+        const itemRows = updates.items.map(it => ({
+          quotation_id: id,
+          material_id: it.materialId,
+          quantity: Number(it.quantity),
+          rate: Number(it.rate),
+          amount: Number(it.quantity) * Number(it.rate)
+        }));
+        await supabase.from("quotation_items").insert(itemRows);
+      }
+
+      await supabase.from("quotations").update(mapped).eq("id", id);
       await fetchAllData();
       saveLogs("Update", "Quotations", `Modified quotation ${id} status to ${updates.status}`);
     } catch (e) {
@@ -572,8 +918,56 @@ export default function App() {
   };
 
   const handleConvertQuotation = async (id: string) => {
+    if (!supabase) return;
     try {
-      const res = await fetch(`/api/quotations/${id}/convert`, { method: "POST" });
+      const { data: qData } = await supabase.from("quotations").select("*, quotation_items(*)").eq("id", id).single();
+      if (!qData) throw new Error("Quotation not found");
+
+      const invoiceRow = {
+        buyer_id: qData.buyer_id,
+        date: new Date().toISOString().split("T")[0],
+        due_date: qData.due_date || null,
+        subtotal: Number(qData.subtotal),
+        tax_amount: Number(qData.tax_amount),
+        total: Number(qData.total),
+        paid_amount: 0,
+        status: "Unpaid",
+        notes: `Converted from quotation ${qData.quote_number}`
+      };
+
+      const { data: insertedInv, error: invError } = await supabase.from("invoices").insert([invoiceRow]).select();
+      if (invError) throw new Error(invError.message);
+
+      if (insertedInv && insertedInv[0]) {
+        const invoiceItems = qData.quotation_items.map((it: any) => ({
+          invoice_id: insertedInv[0].id,
+          material_id: it.material_id,
+          quantity: Number(it.quantity),
+          rate: Number(it.rate),
+          tax_rate: settings.defaultGstRate,
+          subtotal: Number(it.amount),
+          tax_amount: Math.round(Number(it.amount) * (settings.defaultGstRate / 100)),
+          total: Number(it.amount) + Math.round(Number(it.amount) * (settings.defaultGstRate / 100)),
+          transportation_amount: 0
+        }));
+        await supabase.from("invoice_items").insert(invoiceItems);
+
+        const { data: bData } = await supabase.from("buyers").select("balance").eq("id", qData.buyer_id).single();
+        const newBalance = Number(bData?.balance || 0) + Number(qData.total);
+        await supabase.from("buyers").update({ balance: newBalance }).eq("id", qData.buyer_id);
+
+        await supabase.from("buyer_ledger").insert([{
+          buyer_id: qData.buyer_id,
+          date: new Date().toISOString().split("T")[0],
+          type: "invoice",
+          reference_id: insertedInv[0].id,
+          amount: Number(qData.total),
+          description: `Invoice billing generated: ${insertedInv[0].invoice_number}`,
+          balance_after: newBalance
+        }]);
+      }
+
+      await supabase.from("quotations").update({ status: "Converted" }).eq("id", id);
       await fetchAllData();
       saveLogs("Convert", "Quotations", `Converted quotation ${id} to active Invoice`);
     } catch (e) {
@@ -582,8 +976,9 @@ export default function App() {
   };
 
   const handleDeleteQuotation = async (id: string) => {
+    if (!supabase) return;
     try {
-      const res = await fetch(`/api/quotations/${id}`, { method: "DELETE" });
+      await supabase.from("quotations").delete().eq("id", id);
       await fetchAllData();
       saveLogs("Delete", "Quotations", `Removed proposal quotation ID ${id}`);
     } catch (e) {
@@ -593,12 +988,82 @@ export default function App() {
 
   // 6. Invoices CRUD
   const handleAddInvoice = async (invData: Omit<Invoice, "id" | "invoiceNumber">) => {
+    if (!supabase) return;
     try {
-      const res = await fetch("/api/invoices", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(invData)
-      });
+      const subtotal = invData.items.reduce((sum, it) => sum + (Number(it.rate) * Number(it.quantity)), 0);
+      const item_level_transportation = invData.items.reduce((sum, it) => sum + Number(it.transportation_amount || 0), 0);
+      const global_transportation = invData.transport ? Math.max(0, Number(invData.transport.amount || 0)) : 0;
+      const total_transportation = item_level_transportation + global_transportation;
+      const taxAmount = Math.round(subtotal * (settings.defaultGstRate / 100));
+      const total = subtotal + taxAmount + total_transportation;
+      const invoiceDate = invData.date || new Date().toISOString().split("T")[0];
+
+      const invoiceRow = {
+        buyer_id: invData.buyerId,
+        date: invoiceDate,
+        due_date: invData.dueDate || null,
+        subtotal,
+        tax_amount: taxAmount,
+        total,
+        paid_amount: 0,
+        status: "Unpaid",
+        notes: invData.notes || null,
+        transport: invData.transport ? {
+          supplierId: invData.transport.supplierId || null,
+          amount: Math.max(0, Number(invData.transport.amount || 0)),
+          notes: invData.transport.notes || ""
+        } : null
+      };
+
+      const { data: insertedInv, error: invError } = await supabase.from("invoices").insert([invoiceRow]).select();
+      if (invError) throw new Error(invError.message);
+
+      if (insertedInv && insertedInv[0]) {
+        const itemRows = invData.items.map(it => {
+          const qty = Number(it.quantity);
+          const rate = Number(it.rate);
+          const transAmt = Number(it.transportation_amount || 0);
+          const purchase_rate = Number(it.purchase_rate || 0);
+          const sellingAmount = qty * rate;
+          const purchaseAmount = qty * purchase_rate;
+          const profit = sellingAmount - purchaseAmount - transAmt;
+          const margin_percentage = sellingAmount > 0 ? (profit / sellingAmount) * 100 : 0;
+
+          return {
+            invoice_id: insertedInv[0].id,
+            material_id: it.materialId,
+            quantity: qty,
+            rate: rate,
+            tax_rate: settings.defaultGstRate,
+            subtotal: sellingAmount,
+            tax_amount: Math.round(sellingAmount * (settings.defaultGstRate / 100)),
+            total: sellingAmount + Math.round(sellingAmount * (settings.defaultGstRate / 100)) + transAmt,
+            transportation_amount: transAmt,
+            transport_supplier_id: it.transport_supplier_id || null,
+            transportation_notes: it.transportation_notes || "",
+            purchase_rate: purchase_rate,
+            selling_rate: rate,
+            profit: profit,
+            margin_percentage: Math.round(margin_percentage * 100) / 100
+          };
+        });
+        await supabase.from("invoice_items").insert(itemRows);
+
+        const { data: bData } = await supabase.from("buyers").select("balance").eq("id", invData.buyerId).single();
+        const newBalance = Number(bData?.balance || 0) + total;
+        await supabase.from("buyers").update({ balance: newBalance }).eq("id", invData.buyerId);
+
+        await supabase.from("buyer_ledger").insert([{
+          buyer_id: invData.buyerId,
+          date: invoiceDate,
+          type: "invoice",
+          reference_id: insertedInv[0].id,
+          amount: total,
+          description: `Invoice billing generated: ${insertedInv[0].invoice_number}`,
+          balance_after: newBalance
+        }]);
+      }
+
       await fetchAllData();
       saveLogs("Create", "Invoices", "Logged active sales invoice & dispatched stock items");
     } catch (e) {
@@ -607,12 +1072,24 @@ export default function App() {
   };
 
   const handleAddPayment = async (id: string, payment: { amount: number; method: string; referenceNo?: string; notes?: string }) => {
+    if (!supabase) return;
     try {
-      const res = await fetch(`/api/invoices/${id}/payment`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payment)
-      });
+      const targetInvoice = invoices.find(inv => inv.id === id);
+      if (!targetInvoice) throw new Error("Invoice not found");
+
+      const newPayment = {
+        invoice_id: id,
+        buyer_id: targetInvoice.buyerId,
+        amount: Number(payment.amount),
+        payment_method: payment.method,
+        reference_number: payment.referenceNo || null,
+        remarks: payment.notes || null,
+        date: new Date().toISOString().split("T")[0]
+      };
+
+      const { error } = await supabase.from("payments").insert([newPayment]);
+      if (error) throw new Error(error.message);
+
       await fetchAllData();
       saveLogs("Payment", "Invoices", `Cleared outstanding ${settings.currency}${payment.amount} using ${payment.method} on invoice ${id}`);
     } catch (e) {
@@ -621,12 +1098,17 @@ export default function App() {
   };
 
   const handleAddAttachment = async (id: string, attachment: Omit<Attachment, "id" | "uploadedAt">) => {
+    if (!supabase) return;
     try {
-      const res = await fetch(`/api/invoices/${id}/attachment`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(attachment)
-      });
+      const { error } = await supabase.from("invoice_attachments").insert([{
+        invoice_id: id,
+        file_name: attachment.name,
+        file_path: attachment.base64Data,
+        file_size: attachment.size || 0,
+        mime_type: attachment.fileType || "application/octet-stream"
+      }]);
+      if (error) throw new Error(error.message);
+
       await fetchAllData();
       saveLogs("Attachment", "Invoices", `Uploaded custom document attachment to invoice ${id}`);
     } catch (e) {
@@ -635,18 +1117,105 @@ export default function App() {
   };
 
   const handleDuplicateInvoice = async (id: string) => {
+    if (!supabase) return;
     try {
-      const res = await fetch(`/api/invoices/${id}/duplicate`, { method: "POST" });
-      await fetchAllData();
-      saveLogs("Duplicate", "Invoices", `Duplicated invoice parameters from template ${id}`);
+      const { data: inv, error: fetchErr } = await supabase.from("invoices").select("*, invoice_items(*)").eq("id", id).single();
+      if (fetchErr || !inv) throw new Error("Source invoice not found");
+
+      const invoiceRow = {
+        buyer_id: inv.buyer_id,
+        date: new Date().toISOString().split("T")[0],
+        due_date: inv.due_date || null,
+        subtotal: Number(inv.subtotal),
+        tax_amount: Number(inv.tax_amount),
+        total: Number(inv.total),
+        paid_amount: 0,
+        status: "Unpaid",
+        notes: `Duplicated from invoice ${inv.invoice_number}`,
+        transport: inv.transport || null
+      };
+
+      const { data: inserted, error: invError } = await supabase.from("invoices").insert([invoiceRow]).select();
+      if (invError) throw new Error(invError.message);
+
+      if (inserted && inserted[0]) {
+        const itemRows = inv.invoice_items.map((it: any) => ({
+          invoice_id: inserted[0].id,
+          material_id: it.material_id,
+          quantity: Number(it.quantity),
+          rate: Number(it.rate),
+          tax_rate: Number(it.tax_rate),
+          subtotal: Number(it.subtotal),
+          tax_amount: Number(it.tax_amount),
+          total: Number(it.total),
+          transportation_amount: Number(it.transportation_amount),
+          transport_supplier_id: it.transport_supplier_id || null,
+          transportation_notes: it.transportation_notes || "",
+          purchase_rate: Number(it.purchase_rate),
+          selling_rate: Number(it.selling_rate),
+          profit: Number(it.profit),
+          margin_percentage: Number(it.margin_percentage)
+        }));
+        await supabase.from("invoice_items").insert(itemRows);
+
+        const { data: bData } = await supabase.from("buyers").select("balance").eq("id", inv.buyer_id).single();
+        const newBalance = Number(bData?.balance || 0) + Number(inv.total);
+        await supabase.from("buyers").update({ balance: newBalance }).eq("id", inv.buyer_id);
+
+        await supabase.from("buyer_ledger").insert([{
+          buyer_id: inv.buyer_id,
+          date: new Date().toISOString().split("T")[0],
+          type: "invoice",
+          reference_id: inserted[0].id,
+          amount: Number(inv.total),
+          description: `Duplicated Invoice billing generated: ${inserted[0].invoice_number}`,
+          balance_after: newBalance
+        }]);
+      }
+
+          await fetchAllData();
+          saveLogs("Duplicate", "Invoices", `Duplicated invoice ${inv.invoice_number} to new sheet`);
     } catch (e) {
       console.error(e);
     }
   };
 
   const handleDeleteInvoice = async (id: string) => {
+    if (!supabase) return;
     try {
-      const res = await fetch(`/api/invoices/${id}`, { method: "DELETE" });
+      const { data: inv } = await supabase.from("invoices").select("*, invoice_items(*)").eq("id", id).single();
+      if (!inv) throw new Error("Invoice not found");
+
+      const balanceDue = Number(inv.total) - Number(inv.paid_amount);
+
+      const { data: bData } = await supabase.from("buyers").select("balance").eq("id", inv.buyer_id).single();
+      const newBalance = Math.max(0, Number(bData?.balance || 0) - balanceDue);
+      await supabase.from("buyers").update({ balance: newBalance }).eq("id", inv.buyer_id);
+
+      await supabase.from("buyer_ledger").insert([{
+        buyer_id: inv.buyer_id,
+        date: new Date().toISOString().split("T")[0],
+        type: "opening",
+        reference_id: "deletion",
+        amount: balanceDue,
+        description: `Invoice deletion reversal: ${inv.invoice_number}`,
+        balance_after: newBalance
+      }]);
+
+      for (const it of inv.invoice_items) {
+        const { data: mat } = await supabase.from("materials").select("current_stock").eq("id", it.material_id).single();
+        const newStock = Number(mat?.current_stock || 0) + Number(it.quantity);
+        await supabase.from("materials").update({ current_stock: newStock }).eq("id", it.material_id);
+        await supabase.from("inventory_transactions").insert([{
+          material_id: it.material_id,
+          date: new Date().toISOString().split("T")[0],
+          type: "add",
+          quantity: Number(it.quantity),
+          description: `Restored stock on Invoice Deletion: ${inv.invoice_number}`
+        }]);
+      }
+
+      await supabase.from("invoices").delete().eq("id", id);
       await fetchAllData();
       saveLogs("Delete", "Invoices", `Purged invoice ID ${id}, reversed balance, and restored stock balance`);
     } catch (e) {
@@ -656,12 +1225,15 @@ export default function App() {
 
   // 7. Notes CRUD
   const handleAddNote = async (noteData: Omit<DashboardNote, "id" | "createdAt">) => {
+    if (!supabase) return;
     try {
-      const res = await fetch("/api/notes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(noteData)
-      });
+      await supabase.from("dashboard_notes").insert([{
+        title: noteData.title,
+        description: noteData.content || "",
+        is_pinned: noteData.isPinned || false,
+        is_completed: noteData.isCompleted || false,
+        category: noteData.category || "General"
+      }]);
       await fetchAllData();
     } catch (e) {
       console.error(e);
@@ -669,12 +1241,16 @@ export default function App() {
   };
 
   const handleUpdateNote = async (id: string, updates: Partial<DashboardNote>) => {
+    if (!supabase) return;
     try {
-      const res = await fetch(`/api/notes/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates)
-      });
+      const mapped: any = {};
+      if (updates.title !== undefined) mapped.title = updates.title;
+      if (updates.content !== undefined) mapped.description = updates.content;
+      if (updates.isPinned !== undefined) mapped.is_pinned = updates.isPinned;
+      if (updates.isCompleted !== undefined) mapped.is_completed = updates.isCompleted;
+      if (updates.category !== undefined) mapped.category = updates.category;
+
+      await supabase.from("dashboard_notes").update(mapped).eq("id", id);
       await fetchAllData();
     } catch (e) {
       console.error(e);
@@ -682,8 +1258,9 @@ export default function App() {
   };
 
   const handleDeleteNote = async (id: string) => {
+    if (!supabase) return;
     try {
-      const res = await fetch(`/api/notes/${id}`, { method: "DELETE" });
+      await supabase.from("dashboard_notes").delete().eq("id", id);
       await fetchAllData();
     } catch (e) {
       console.error(e);
@@ -692,9 +1269,23 @@ export default function App() {
 
   // 8. Wipe
   const handleWipeDatabase = async () => {
+    if (!supabase) return;
     try {
-      await fetch("/api/wipe", { method: "POST" });
-      fetchAllData();
+      await supabase.from("buyer_ledger").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await supabase.from("supplier_ledger").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await supabase.from("inventory_transactions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await supabase.from("payments").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await supabase.from("invoice_items").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await supabase.from("invoices").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await supabase.from("quotation_items").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await supabase.from("quotations").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await supabase.from("dashboard_notes").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await supabase.from("buyers").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await supabase.from("suppliers").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await supabase.from("materials").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      await supabase.from("activity_logs").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+
+      await fetchAllData();
     } catch (e) {
       console.error(e);
     }
