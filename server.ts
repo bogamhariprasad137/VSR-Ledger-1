@@ -42,6 +42,7 @@ if (supabaseUrl && supabaseKey) {
 
 // Track sync promise for middleware await to prevent race conditions on serverless environments
 let syncPromise: Promise<any> = Promise.resolve();
+let isDirty = false;
 
 // Helper to convert arbitrary short IDs (like b1, s1) to deterministic UUIDs for PostgreSQL foreign key integrity
 const toUUID = (id: string): string => {
@@ -77,15 +78,45 @@ const toUUID = (id: string): string => {
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-// Middleware to serialize API request handling with background Supabase synchronizations
+// Middleware to handle Supabase syncs on every request
 app.use(async (req, res, next) => {
+  // 1. Pull latest state from Supabase on every incoming request to ensure data freshness
   if (req.path.startsWith("/api/") && supabase) {
     try {
-      await syncPromise;
+      const cloudData = await pullFromSupabase();
+      if (cloudData && Object.keys(cloudData).length > 0) {
+        db = {
+          ...db,
+          ...cloudData,
+          session: db.session // preserve local session state
+        };
+        // Write to local cache in tmp (ignore write errors in read-only production file systems)
+        try {
+          fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+        } catch (fErr) {}
+      }
     } catch (err) {
-      console.error("Failed to await syncPromise in middleware:", err);
+      console.error("Supabase pull failed in middleware:", err);
     }
   }
+
+  // 2. Intercept response to await Supabase writes if dirty
+    const originalJson = res.json;
+    res.json = (async function (this: any, body: any) {
+      if (isDirty && supabase) {
+        isDirty = false;
+        try {
+          console.log("Awaiting Supabase replication before response...");
+          await syncToSupabase(db);
+          console.log("Supabase replication complete.");
+        } catch (err) {
+          console.error("Supabase sync failed on response intercept:", err);
+        }
+      }
+      return originalJson.call(this, body);
+    } as any);
+
+
   next();
 });
 
@@ -321,20 +352,33 @@ const ensureDefaultMaterials = (database: DBStructure) => {
 
   if (modified) {
     try {
-      fs.writeFileSync(DB_FILE, JSON.stringify(database, null, 2), "utf-8");
+      writeDBFile(database);
     } catch (err) {
       console.error("Failed to save seeded materials to DB", err);
     }
   }
 };
 
-// Load DB helper
-const loadDB = (): DBStructure => {
+const writeDBFile = (database: DBStructure) => {
+  const isProduction = process.env.VERCEL || process.env.NODE_ENV === "production";
+  if (isProduction && supabase) {
+    return; // Bypass file writes in production serverless if Supabase is active
+  }
+  try {
+    fs.writeFileSync(DB_FILE, JSON.stringify(database, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Failed to persist database file to disk", err);
+  }
+};
+
+const loadDBFromDisk = (): DBStructure => {
   try {
     let database: DBStructure;
     if (!fs.existsSync(DB_FILE)) {
       database = getInitialData();
-      fs.writeFileSync(DB_FILE, JSON.stringify(database, null, 2), "utf-8");
+      try {
+        fs.writeFileSync(DB_FILE, JSON.stringify(database, null, 2), "utf-8");
+      } catch (err) {}
     } else {
       const raw = fs.readFileSync(DB_FILE, "utf-8");
       database = JSON.parse(raw);
@@ -342,11 +386,20 @@ const loadDB = (): DBStructure => {
     ensureDefaultMaterials(database);
     return database;
   } catch (err) {
-    console.error("Error reading database file, returning default schema", err);
     const database = getInitialData();
     ensureDefaultMaterials(database);
     return database;
   }
+};
+
+// Load DB helper
+const loadDB = (): DBStructure => {
+  const isProduction = process.env.VERCEL || process.env.NODE_ENV === "production";
+  if (isProduction && supabase && typeof db !== "undefined" && db) {
+    // In production serverless with Supabase active, return the in-memory db hydrated by middleware
+    return db;
+  }
+  return loadDBFromDisk();
 };
 
 // Async background synchronizer to replicate state into Supabase relational tables
@@ -612,7 +665,44 @@ const syncToSupabase = async (data: DBStructure) => {
           const { error: payError } = await supabase.from("payments").upsert(paymentRows);
           if (payError) console.warn("Supabase Sync Warning (payments):", payError.message);
         }
+
+        // 11. Sync Invoice Attachments
+        const attachmentRows: any[] = [];
+        data.invoices.forEach(inv => {
+          if (inv.attachments && inv.attachments.length > 0) {
+            inv.attachments.forEach(att => {
+              attachmentRows.push({
+                id: toUUID(att.id),
+                invoice_id: toUUID(inv.id),
+                file_name: att.name,
+                file_path: att.base64Data,
+                file_size: att.size || 0,
+                mime_type: att.fileType || "application/octet-stream",
+                uploaded_at: att.uploadedAt || new Date().toISOString()
+              });
+            });
+          }
+        });
+        if (attachmentRows.length > 0) {
+          const { error: attError } = await supabase.from("invoice_attachments").upsert(attachmentRows);
+          if (attError) console.warn("Supabase Sync Warning (invoice_attachments):", attError.message);
+        }
       }
+    }
+
+    // 12. Sync Stock Adjustments (Inventory Transactions)
+    if (data.stockAdjustments && data.stockAdjustments.length > 0) {
+      const adjustmentRows = data.stockAdjustments.map(sa => ({
+        id: toUUID(sa.id),
+        material_id: toUUID(sa.materialId),
+        date: sa.date || new Date().toISOString().split("T")[0],
+        type: sa.type || "reconcile",
+        quantity: sa.quantity || 0,
+        description: sa.description || null,
+        created_at: new Date().toISOString()
+      }));
+      const { error: saError } = await supabase.from("inventory_transactions").upsert(adjustmentRows);
+      if (saError) console.warn("Supabase Sync Warning (inventory_transactions):", saError.message);
     }
     
     console.log("Supabase replication sync process executed successfully");
@@ -654,6 +744,10 @@ const pullFromSupabase = async (): Promise<Partial<DBStructure> | null> => {
     const quotationsRes = await supabase.from("quotations").select("*, quotation_items(*)");
     // Fetch invoices
     const invoicesRes = await supabase.from("invoices").select("*, invoice_items(*), payments(*)");
+    // Fetch invoice attachments
+    const attachmentsRes = await supabase.from("invoice_attachments").select("*");
+    // Fetch inventory transactions
+    const inventoryTxRes = await supabase.from("inventory_transactions").select("*");
     
     const pulledData: Partial<DBStructure> = {};
     
@@ -792,6 +886,24 @@ const pullFromSupabase = async (): Promise<Partial<DBStructure> | null> => {
       }));
     }
     
+    const attachmentsMap: Record<string, any[]> = {};
+    if (attachmentsRes.data) {
+      attachmentsRes.data.forEach((att: any) => {
+        const invId = att.invoice_id;
+        if (!attachmentsMap[invId]) {
+          attachmentsMap[invId] = [];
+        }
+        attachmentsMap[invId].push({
+          id: att.id,
+          name: att.file_name,
+          fileType: att.mime_type,
+          size: att.file_size,
+          base64Data: att.file_path,
+          uploadedAt: att.uploaded_at
+        });
+      });
+    }
+
     if (invoicesRes.data && invoicesRes.data.length > 0) {
       pulledData.invoices = invoicesRes.data.map((inv: any) => ({
         id: inv.id,
@@ -806,7 +918,7 @@ const pullFromSupabase = async (): Promise<Partial<DBStructure> | null> => {
         status: inv.status === "Paid" ? "paid" : (inv.status === "Partially Paid" ? "partial" : "unpaid"),
         notes: inv.notes || "",
         transport: inv.transport || null,
-        attachments: [],
+        attachments: attachmentsMap[inv.id] || [],
         items: (inv.invoice_items || []).map((it: any) => ({
           materialId: it.material_id,
           name: "Item",
@@ -828,6 +940,17 @@ const pullFromSupabase = async (): Promise<Partial<DBStructure> | null> => {
         }))
       }));
     }
+
+    if (inventoryTxRes.data && inventoryTxRes.data.length > 0) {
+      pulledData.stockAdjustments = inventoryTxRes.data.map((sa: any) => ({
+        id: sa.id,
+        materialId: sa.material_id,
+        date: sa.date,
+        type: sa.type,
+        quantity: Number(sa.quantity || 0),
+        description: sa.description || ""
+      }));
+    }
     
     console.log("Successfully pulled latest state from Supabase cloud tables!");
     return pulledData;
@@ -839,16 +962,9 @@ const pullFromSupabase = async (): Promise<Partial<DBStructure> | null> => {
 
 // Save DB helper
 const saveDB = (data: DBStructure) => {
-  try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
-  } catch (err) {
-    console.error("Failed to persist database file to disk", err);
-  }
+  writeDBFile(data);
   if (supabase) {
-    // Replicate updates to Supabase and assign to syncPromise so subsequent requests await it
-    syncPromise = syncToSupabase(data).catch(err => {
-      console.error("Supabase sync background error:", err);
-    });
+    isDirty = true;
   }
 };
 
@@ -868,8 +984,8 @@ const addLog = (db: DBStructure, action: string, module: string, details: string
   }
 };
 
-// Initialize server data
-let db = loadDB();
+// Initialize server data from disk initially
+let db = loadDBFromDisk();
 
 // Startup cloud synchronization routine
 const initCloudSync = async () => {
@@ -882,7 +998,7 @@ const initCloudSync = async () => {
       session: db.session // preserve local session state
     };
     try {
-      fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
+      writeDBFile(db);
     } catch (err) {
       console.error("Failed to write hydrated DB to disk", err);
     }
