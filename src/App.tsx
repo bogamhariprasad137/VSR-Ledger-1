@@ -432,34 +432,37 @@ export default function App() {
     setAuthError("");
     try {
       if (supabase) {
-        try {
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password
-          });
-          if (error) {
-            console.warn("Supabase Auth failed, checking local credentials:", error.message);
-          } else if (data.session) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+        if (error) {
+          // If Supabase auth fails, check if the credentials match local fallback
+          if (email.trim() === "admin@pavanenterprises.com" && password === "admin123") {
             localStorage.setItem("pavan_auth", "true");
             setIsAuthenticated(true);
             setAuthError("");
             return;
           }
-        } catch (supErr) {
-          console.warn("Supabase connection failed, checking local fallback:", supErr);
+          throw error;
+        } else if (data.session) {
+          localStorage.setItem("pavan_auth", "true");
+          setIsAuthenticated(true);
+          setAuthError("");
+          return;
+        }
+      } else {
+        // Local fallback bypass credentials when Supabase is not configured
+        if (email.trim() === "admin@pavanenterprises.com" && password === "admin123") {
+          localStorage.setItem("pavan_auth", "true");
+          setIsAuthenticated(true);
+          setAuthError("");
+        } else {
+          setAuthError("Invalid credentials. Try using admin@pavanenterprises.com / admin123");
         }
       }
-
-      // Local fallback bypass credentials
-      if (email.trim() === "admin@pavanenterprises.com" && password === "admin123") {
-        localStorage.setItem("pavan_auth", "true");
-        setIsAuthenticated(true);
-        setAuthError("");
-      } else {
-        setAuthError("Invalid credentials. Try using admin@pavanenterprises.com / admin123");
-      }
     } catch (err: any) {
-      console.error(err);
+      console.error("Login failed:", err);
       setAuthError(err.message || "An unexpected network error occurred.");
     } finally {
       setIsLoggingIn(false);
