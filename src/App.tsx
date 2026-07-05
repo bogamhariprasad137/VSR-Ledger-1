@@ -437,13 +437,6 @@ export default function App() {
           password
         });
         if (error) {
-          // If Supabase auth fails, check if the credentials match local fallback
-          if (email.trim() === "admin@pavanenterprises.com" && password === "admin123") {
-            localStorage.setItem("pavan_auth", "true");
-            setIsAuthenticated(true);
-            setAuthError("");
-            return;
-          }
           throw error;
         } else if (data.session) {
           localStorage.setItem("pavan_auth", "true");
@@ -452,14 +445,7 @@ export default function App() {
           return;
         }
       } else {
-        // Local fallback bypass credentials when Supabase is not configured
-        if (email.trim() === "admin@pavanenterprises.com" && password === "admin123") {
-          localStorage.setItem("pavan_auth", "true");
-          setIsAuthenticated(true);
-          setAuthError("");
-        } else {
-          setAuthError("Invalid credentials. Try using admin@pavanenterprises.com / admin123");
-        }
+        setAuthError("Supabase database connection not established. Local login is disabled.");
       }
     } catch (err: any) {
       console.error("Login failed:", err);
@@ -490,12 +476,7 @@ export default function App() {
         if (error) throw error;
         setResetSuccess("Password reset link sent to your email.");
       } else {
-        // Local fallback simulation
-        if (email.trim() === "admin@pavanenterprises.com") {
-          setResetSuccess("Password reset link sent to admin email (Local fallback mode).");
-        } else {
-          setAuthError("User not found.");
-        }
+        setAuthError("Supabase database connection not established. Password reset is disabled.");
       }
     } catch (err: any) {
       console.error("Password reset error:", err);
@@ -1446,14 +1427,14 @@ export default function App() {
                   required
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="admin@pavanenterprises.com" 
+                  placeholder="your-email@example.com" 
                   className="w-full pl-9 pr-3 py-2 border border-border-sand bg-card-soft/60 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary font-semibold text-charcoal text-xs"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold text-stone uppercase mb-1">Admin Access Password</label>
+              <label className="block text-[10px] font-bold text-stone uppercase mb-1">Access Password</label>
               <div className="relative">
                 <Lock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone/60" />
                 <input 
