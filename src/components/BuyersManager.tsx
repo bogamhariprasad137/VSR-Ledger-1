@@ -11,7 +11,7 @@ interface BuyersManagerProps {
   ledgerEntries: BuyerLedgerEntry[];
   onAddBuyer: (buyer: Omit<Buyer, "id">) => void;
   onUpdateBuyer: (id: string, updates: Partial<Buyer>) => void;
-  onDeleteBuyer: (id: string) => void;
+  onDeleteBuyer: (id: string) => Promise<boolean>;
   currency: string;
 }
 
@@ -100,10 +100,12 @@ export default function BuyersManager({
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to completely delete this buyer and their history?")) {
-      onDeleteBuyer(id);
-      setSelectedBuyerId(null);
+      const success = await onDeleteBuyer(id);
+      if (success) {
+        setSelectedBuyerId(null);
+      }
     }
   };
 

@@ -674,24 +674,29 @@ export default function App() {
     }
   };
 
-  const handleDeleteBuyer = async (id: string) => {
-    if (!supabase) return;
+  const handleDeleteBuyer = async (id: string): Promise<boolean> => {
+    if (!supabase) return false;
     try {
-      const { data: invs } = await supabase.from("invoices").select("id, total, paid_amount").eq("buyer_id", id);
-      const hasInvoices = invs?.some(inv => Number(inv.total) - Number(inv.paid_amount) > 0);
-      if (hasInvoices) {
-        throw new Error("Cannot delete buyer with pending outstanding balances.");
-      }
+      // 1. Delete associated invoices first to handle the RESTRICT constraint
+      const { error: invErr } = await supabase.from("invoices").delete().eq("buyer_id", id);
+      if (invErr) throw new Error(`Failed to delete associated invoices: ${invErr.message}`);
 
-      const { error } = await supabase.from("buyers").delete().eq("id", id);
-      if (error) throw new Error(error.message);
+      // 2. Delete associated quotations to handle the RESTRICT constraint
+      const { error: quoteErr } = await supabase.from("quotations").delete().eq("buyer_id", id);
+      if (quoteErr) throw new Error(`Failed to delete associated quotations: ${quoteErr.message}`);
+
+      // 3. Delete the buyer
+      const { error: buyerErr } = await supabase.from("buyers").delete().eq("id", id);
+      if (buyerErr) throw new Error(`Failed to delete buyer: ${buyerErr.message}`);
 
       await fetchAllData();
       saveLogs("Delete", "Buyers", `Purged client account ID ${id}`);
       showToast("Buyer deleted successfully.", "success");
+      return true;
     } catch (e: any) {
       console.error("Failed to delete buyer:", e);
       showToast(e.message || "Failed to delete buyer.", "error");
+      return false;
     }
   };
 
