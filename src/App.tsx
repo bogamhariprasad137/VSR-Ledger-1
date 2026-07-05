@@ -200,7 +200,7 @@ export default function App() {
         email: b.email || "",
         address: b.address || "",
         gstin: b.gstin || "",
-        status: b.is_active ? "active" : "inactive" as const,
+        status: (b.is_active ? "active" : "inactive") as "active" | "inactive",
         balance: Number(b.balance || 0)
       }));
 
@@ -223,7 +223,7 @@ export default function App() {
         email: s.email || "",
         address: s.address || "",
         gstin: s.gstin || "",
-        status: s.is_active ? "active" : "inactive" as const,
+        status: (s.is_active ? "active" : "inactive") as "active" | "inactive",
         outstandingPayable: Number(s.outstanding_payable || 0)
       }));
 
@@ -285,7 +285,7 @@ export default function App() {
         taxAmount: Number(inv.tax_amount || 0),
         total: Number(inv.total || 0),
         balanceDue: Number(inv.total - inv.paid_amount),
-        status: inv.status === "Paid" ? "paid" : (inv.status === "Partially Paid" ? "partial" : "unpaid" as const),
+        status: (inv.status === "Paid" ? "paid" : (inv.status === "Partially Paid" ? "partial" : "unpaid")) as "paid" | "partial" | "unpaid",
         notes: inv.notes || "",
         transport: inv.transport || null,
         attachments: attachmentsMap[inv.id] || [],
@@ -466,19 +466,72 @@ export default function App() {
     }
   };
 
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await handleLogin(password, email);
+  };
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      setAuthError("Please enter your email address to reset password.");
+      return;
+    }
+    setIsResetting(true);
+    setAuthError("");
+    setResetSuccess("");
+    try {
+      if (supabase) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/`,
+        });
+        if (error) throw error;
+        setResetSuccess("Password reset link sent to your email.");
+      } else {
+        // Local fallback simulation
+        if (email.trim() === "admin@pavanenterprises.com") {
+          setResetSuccess("Password reset link sent to admin email (Local fallback mode).");
+        } else {
+          setAuthError("User not found.");
+        }
+      }
+    } catch (err: any) {
+      console.error("Password reset error:", err);
+      setAuthError(err.message || "Failed to send password reset email.");
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       if (supabase) {
         await supabase.auth.signOut();
       }
     } catch (e) {
-      console.error(e);
+      console.error("SignOut error:", e);
+    } finally {
+      // Immediately clear local state or localStorage caching
+      try {
+        localStorage.clear();
+      } catch (err) {
+        console.error("Failed to clear localStorage:", err);
+      }
+      
+      setIsAuthenticated(false);
+      setBuyers([]);
+      setBuyerLedgerEntries([]);
+      setSuppliers([]);
+      setMaterials([]);
+      setQuotations([]);
+      setInvoices([]);
+      setNotes([]);
+      setLogs([]);
+      setSupplierLedgerEntries([]);
+      setStockAdjustments([]);
+
+      // Force a clean application redirect or window reload back to the root path
+      window.location.href = "/";
     }
-    localStorage.removeItem("pavan_auth");
-    setIsAuthenticated(false);
-    
-    // Force a clean application redirect and reload to reset all states cleanly and avoid crashes
-    window.location.href = "/";
   };
 
 
