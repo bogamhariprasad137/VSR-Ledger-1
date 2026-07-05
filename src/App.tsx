@@ -552,13 +552,16 @@ export default function App() {
   const handleAddBuyer = async (buyerData: Omit<Buyer, "id">) => {
     if (!supabase) return;
     try {
+      const gstinVal = buyerData.gstin?.trim();
+      const cleanedGstin = !gstinVal || gstinVal.toUpperCase() === "N/A" ? null : gstinVal;
+
       const newBuyerRow = {
         name: buyerData.name,
         contact_person: buyerData.contactPerson || "",
         phone: buyerData.phone || "",
         email: buyerData.email || "",
         address: buyerData.address || "",
-        gstin: buyerData.gstin || "",
+        gstin: cleanedGstin,
         balance: Number(buyerData.balance) || 0,
         is_active: buyerData.status !== "inactive"
       };
@@ -599,7 +602,10 @@ export default function App() {
       if (updates.phone !== undefined) mappedUpdates.phone = updates.phone;
       if (updates.email !== undefined) mappedUpdates.email = updates.email;
       if (updates.address !== undefined) mappedUpdates.address = updates.address;
-      if (updates.gstin !== undefined) mappedUpdates.gstin = updates.gstin;
+      if (updates.gstin !== undefined) {
+        const gstinVal = updates.gstin?.trim();
+        mappedUpdates.gstin = !gstinVal || gstinVal.toUpperCase() === "N/A" ? null : gstinVal;
+      }
       if (updates.status !== undefined) mappedUpdates.is_active = updates.status !== "inactive";
       if (updates.balance !== undefined) mappedUpdates.balance = Number(updates.balance);
 
@@ -652,13 +658,16 @@ export default function App() {
   const handleAddSupplier = async (supData: Omit<Supplier, "id">) => {
     if (!supabase) return;
     try {
+      const gstinVal = supData.gstin?.trim();
+      const cleanedGstin = !gstinVal || gstinVal.toUpperCase() === "N/A" ? null : gstinVal;
+
       const newSup = {
         name: supData.name,
         contact_person: supData.contactPerson || "",
         phone: supData.phone || "",
         email: supData.email || "",
         address: supData.address || "",
-        gstin: supData.gstin || "",
+        gstin: cleanedGstin,
         outstanding_payable: Number(supData.outstandingPayable) || 0,
         is_active: supData.status !== "inactive"
       };
@@ -694,7 +703,10 @@ export default function App() {
       if (updates.phone !== undefined) mappedUpdates.phone = updates.phone;
       if (updates.email !== undefined) mappedUpdates.email = updates.email;
       if (updates.address !== undefined) mappedUpdates.address = updates.address;
-      if (updates.gstin !== undefined) mappedUpdates.gstin = updates.gstin;
+      if (updates.gstin !== undefined) {
+        const gstinVal = updates.gstin?.trim();
+        mappedUpdates.gstin = !gstinVal || gstinVal.toUpperCase() === "N/A" ? null : gstinVal;
+      }
       if (updates.status !== undefined) mappedUpdates.is_active = updates.status !== "inactive";
       if (updates.outstandingPayable !== undefined) mappedUpdates.outstanding_payable = Number(updates.outstandingPayable);
 
