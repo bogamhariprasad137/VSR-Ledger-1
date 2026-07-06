@@ -3,7 +3,7 @@ import { Buyer, BuyerLedgerEntry } from "../types";
 import { 
   Users, Search, Plus, Trash2, Edit2, ChevronRight, FileText, 
   MapPin, Phone, Mail, Award, TrendingUp, AlertTriangle, ArrowLeft,
-  X, Check, DollarSign, Calendar, Printer
+  X, Check, DollarSign, Calendar, Printer, RefreshCw
 } from "lucide-react";
 
 interface BuyersManagerProps {
@@ -27,6 +27,7 @@ export default function BuyersManager({
   const [selectedBuyerId, setSelectedBuyerId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form Fields
   const [name, setName] = useState("");
@@ -102,9 +103,16 @@ export default function BuyersManager({
 
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to completely delete this buyer and their history?")) {
-      const success = await onDeleteBuyer(id);
-      if (success) {
-        setSelectedBuyerId(null);
+      setIsDeleting(true);
+      try {
+        const success = await onDeleteBuyer(id);
+        if (success) {
+          setSelectedBuyerId(null);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsDeleting(false);
       }
     }
   };
@@ -395,9 +403,15 @@ export default function BuyersManager({
                 </button>
                 <button 
                   onClick={() => handleDelete(selectedBuyer.id)}
-                  className="px-2.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 font-bold rounded-xl flex items-center gap-1 transition-all active:scale-[0.98]"
+                  disabled={isDeleting}
+                  className="px-2.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 font-bold rounded-xl flex items-center gap-1 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Trash2 className="w-3.5 h-3.5" /> Purge Account
+                  {isDeleting ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-3.5 h-3.5" />
+                  )}
+                  {isDeleting ? "Purging..." : "Purge Account"}
                 </button>
               </div>
             </div>

@@ -689,6 +689,12 @@ export default function App() {
       const { error: buyerErr } = await supabase.from("buyers").delete().eq("id", id);
       if (buyerErr) throw new Error(`Failed to delete buyer: ${buyerErr.message}`);
 
+      // Update local React state immediately for instant UI feedback
+      setBuyers(prev => prev.filter(b => b.id !== id));
+      setInvoices(prev => prev.filter(inv => inv.buyerId !== id));
+      setQuotations(prev => prev.filter(q => q.buyerId !== id));
+      setBuyerLedgerEntries(prev => prev.filter(entry => entry.buyerId !== id));
+
       await fetchAllData();
       saveLogs("Delete", "Buyers", `Purged client account ID ${id}`);
       showToast("Buyer deleted successfully.", "success");
