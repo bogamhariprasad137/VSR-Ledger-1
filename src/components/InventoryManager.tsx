@@ -152,9 +152,10 @@ export default function InventoryManager({
       {/* Materials catalog grid - Left column */}
       <div className="col-span-12 md:col-span-8 glass-card rounded-2xl overflow-hidden flex flex-col h-full">
         {/* Search Header */}
-        <div className="p-3.5 border-b border-border-sand/30 bg-card-soft/40 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto flex-1">
-            <div className="relative flex-1 md:max-w-sm">
+        <div className="p-3.5 border-b border-border-sand/30 bg-card-soft/40">
+          <div className="flex flex-col md:flex-row items-center gap-4 w-full">
+            {/* Search Input */}
+            <div className="relative w-full md:flex-1 md:max-w-sm">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone/60" />
               <input 
                 type="text" 
@@ -169,25 +170,26 @@ export default function InventoryManager({
             <select
               value={activeCategory}
               onChange={e => setActiveCategory(e.target.value)}
-              className="px-3 h-10 border border-border-sand rounded-xl bg-card-soft/60 text-xs font-bold text-charcoal focus:ring-1 focus:ring-primary focus:outline-none"
+              className="w-full md:w-48 px-3 h-10 border border-border-sand rounded-xl bg-card-soft/60 text-xs font-bold text-charcoal focus:ring-1 focus:ring-primary focus:outline-none"
             >
               {categories.map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
-          </div>
 
-          <button 
-            onClick={startAdd}
-            className="px-4 h-10 bg-primary hover:bg-primary-dark text-card-soft font-bold rounded-xl flex items-center justify-center gap-1.5 self-stretch sm:self-auto shrink-0 transition-all active:scale-[0.98] text-xs"
-          >
-            <Plus className="w-3.5 h-3.5" /> Add Material
-          </button>
+            {/* Add Material Button */}
+            <button 
+              onClick={startAdd}
+              className="w-full md:w-auto px-4 h-10 bg-primary hover:bg-primary-dark text-card-soft font-bold rounded-xl flex items-center justify-center gap-1.5 shrink-0 transition-all active:scale-[0.98] text-xs"
+            >
+              <Plus className="w-3.5 h-3.5" /> Add Material
+            </button>
+          </div>
         </div>
 
         {/* Materials Table */}
-        <div className="flex-1 overflow-y-auto overflow-hidden max-h-[500px] no-scrollbar">
-          <div className="w-full overflow-x-auto block mt-4">
+        <div className="flex-1 overflow-y-auto overflow-hidden max-h-[500px] no-scrollbar mt-4">
+          <div className="w-full overflow-x-auto block">
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-card-soft/40 text-stone font-extrabold uppercase tracking-wider text-[10px] border-b border-border-sand/30">
