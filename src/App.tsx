@@ -1498,13 +1498,13 @@ export default function App() {
       {isMobileOpen && (
         <div 
           onClick={() => setIsMobileOpen(false)}
-          className="md:hidden fixed inset-0 bg-charcoal/40 backdrop-blur-xs z-40 transition-opacity duration-300"
+          className="md:hidden fixed inset-0 bg-charcoal/40 backdrop-blur-xs z-[9998] transition-opacity duration-300"
         />
       )}
 
       {/* Responsive Left Sidebar Navigation */}
       <aside 
-        className={`fixed inset-y-0 left-0 z-50 md:relative md:translate-x-0 transition-all duration-300 ease-in-out bg-primary border-r border-black/5 text-card-soft flex flex-col justify-between p-4 shrink-0 no-print shadow-xl md:shadow-none h-full
+        className={`fixed inset-y-0 left-0 z-[9999] md:relative md:translate-x-0 transition-all duration-300 ease-in-out bg-primary border-r border-black/5 text-card-soft flex flex-col justify-between p-4 shrink-0 no-print shadow-xl md:shadow-none h-full
           ${isMobileOpen ? "translate-x-0 w-[80%] sm:w-[280px] pointer-events-auto opacity-100" : "-translate-x-full md:translate-x-0 pointer-events-none md:pointer-events-auto"}
           ${isCollapsed ? "md:w-[72px]" : "md:w-[280px]"}
         `}
@@ -1570,7 +1570,7 @@ export default function App() {
                       }
                       setIsMobileOpen(false);
                     }}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all text-left group hover:scale-[1.01] hover:-translate-y-[0.5px] duration-200 relative ${
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold transition-all text-left group md:hover:scale-[1.01] md:hover:-translate-y-[0.5px] duration-200 relative ${
                       isSelected 
                         ? "bg-[#D4C9BA] text-[#1C1C1E] shadow-sm font-extrabold" 
                         : "text-[#D4C9BA]/85 hover:text-[#D4C9BA] hover:bg-[rgba(212,201,186,0.15)]"
@@ -1602,7 +1602,7 @@ export default function App() {
             <div className="relative group border-t border-card-soft/10 pt-2 mt-2">
               <button
                 onClick={() => setIsQuickAddOpen(!isQuickAddOpen)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold transition-all text-left text-card-soft/85 hover:text-card-soft hover:bg-[rgba(212,201,186,0.15)] hover:scale-[1.01] duration-200`}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-bold transition-all text-left text-card-soft/85 hover:text-card-soft hover:bg-[rgba(212,201,186,0.15)] md:hover:scale-[1.01] duration-200`}
               >
                 <div className="flex items-center gap-3">
                   <Plus className="w-4 h-4 shrink-0 bg-[#D4C9BA]/20 p-0.5 rounded-full" />
