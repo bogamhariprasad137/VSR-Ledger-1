@@ -174,11 +174,11 @@ export default function SuppliersManager({
       </div>
 
       {/* Supplier Profile or Form View */}
-      <div className={`col-span-12 ${selectedSupplierId ? "md:col-span-8" : "md:col-span-12 hidden md:flex"} glass-card rounded-2xl p-4 md:p-6 flex flex-col min-h-[500px]`}>
+      <div className={`col-span-12 ${selectedSupplierId || isAdding || isEditing ? "md:col-span-8" : "md:col-span-12 hidden md:flex"} glass-card rounded-2xl p-4 md:p-6 flex flex-col min-h-[500px]`}>
         
         {/* ADD OR EDIT FORM VIEW */}
         {isAdding || isEditing ? (
-          <form onSubmit={handleSubmit} className="p-5 space-y-4 flex flex-col h-full bg-card-soft/10">
+          <form onSubmit={handleSubmit} className="p-5 space-y-4 flex flex-col h-full bg-card-soft/10 max-h-[90vh] md:max-h-none overflow-y-auto">
             <div className="flex justify-between items-center border-b border-border-sand/30 pb-3">
               <h3 className="font-bold text-charcoal text-sm font-display">
                 {isAdding ? "Register New Raw Material Supplier" : `Edit Supplier: ${selectedSupplier?.name}`}

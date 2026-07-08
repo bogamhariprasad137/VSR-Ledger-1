@@ -1493,7 +1493,7 @@ export default function App() {
 
   // COMPILATION LAYOUT
   return (
-    <div className="min-h-screen bg-background-milky flex font-sans text-xs antialiased print:bg-white overflow-hidden">
+    <div className="min-h-screen bg-background-milky flex font-sans text-xs antialiased print:bg-white overflow-y-auto md:overflow-hidden">
       
       {/* Mobile Drawer Backdrop overlay */}
       {isMobileOpen && (
@@ -1695,7 +1695,7 @@ export default function App() {
       </aside>
 
       {/* Main Workspace Frame */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen md:h-screen overflow-y-auto md:overflow-hidden">
         
         {/* Top App Bar Header with Search, Memos, and Notifications popups */}
         <header className="h-14 bg-primary border-b border-white/10 text-card-soft flex items-center justify-between px-5 shrink-0 no-print z-30 relative shadow-md">
