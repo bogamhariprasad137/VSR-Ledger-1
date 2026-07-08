@@ -7,34 +7,49 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   /* Modern Charcoal & Warm Champagne Beige Identity */
-  --color-primary: #1C1C1E;          /* Soft Charcoal Black */
-  --color-primary-dark: #121213;     /* Darker Charcoal Black */
-  --color-background-milky: #D4C9BA; /* Warm Champagne Beige */
-  --color-card-soft: #D4C9BA;        /* Warm Champagne Beige for light indicators */
-  --color-charcoal: #1C1C1E;         /* Text / Primary Dark elements */
-  --color-stone: rgba(28, 28, 30, 0.7); /* Muted Dark Charcoal text */
-  --color-border-sand: rgba(28, 28, 30, 0.12); /* Subtle Border */
+  --color-primary: #1C1C1E;
+  /* Soft Charcoal Black */
+  --color-primary-dark: #121213;
+  /* Darker Charcoal Black */
+  --color-background-milky: #D4C9BA;
+  /* Warm Champagne Beige */
+  --color-card-soft: #D4C9BA;
+  /* Warm Champagne Beige for light indicators */
+  --color-charcoal: #1C1C1E;
+  /* Text / Primary Dark elements */
+  --color-stone: rgba(28, 28, 30, 0.7);
+  /* Muted Dark Charcoal text */
+  --color-border-sand: rgba(28, 28, 30, 0.12);
+  /* Subtle Border */
 }
 
 /* Custom premium typography and transition defaults */
 body {
   font-family: var(--font-sans);
-  background-color: #D4C9BA !important; /* Force Warm Champagne Beige background throughout */
+  background-color: #D4C9BA !important;
+  /* Force Warm Champagne Beige background throughout */
   color: #1C1C1E;
   transition: background-color 300ms ease-in-out, color 300ms ease-in-out;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-display);
 }
 
 /* Glassmorphic Cards and Overlays */
 .glass-card {
-  background: rgba(255, 255, 255, 0.65) !important; /* 65% opacity white background */
+  background: rgba(255, 255, 255, 0.65) !important;
+  /* 65% opacity white background */
   backdrop-filter: blur(18px) !important;
   -webkit-backdrop-filter: blur(18px) !important;
   border: 1px solid rgba(28, 28, 30, 0.08) !important;
-  box-shadow: 0 4px 12px 0 rgba(28, 28, 30, 0.04) !important; /* Level 2 Shadow (medium) */
+  box-shadow: 0 4px 12px 0 rgba(28, 28, 30, 0.04) !important;
+  /* Level 2 Shadow (medium) */
   transition: all 250ms ease-in-out !important;
   border-radius: 16px !important;
   color: #1C1C1E !important;
@@ -43,42 +58,55 @@ h1, h2, h3, h4, h5, h6 {
 /* Cards Hover: Lift, Scale, Shadow Increase (Level 4), and Border Glow */
 .glass-card:hover {
   transform: translateY(-2px) scale(1.02) !important;
-  box-shadow: 0 12px 30px 0 rgba(28, 28, 30, 0.12) !important; /* Level 4 shadow */
+  box-shadow: 0 12px 30px 0 rgba(28, 28, 30, 0.12) !important;
+  /* Level 4 shadow */
   border-color: rgba(28, 28, 30, 0.15) !important;
 }
 
 /* Dialogs, Popups Glassmorphism & Level 3 Shadow */
-.dialog-glass, [role="dialog"], .notes-popup, .notif-popup {
-  background: rgba(255, 255, 255, 0.45) !important; /* 45% white background with 20px blur */
+.dialog-glass,
+[role="dialog"],
+.notes-popup,
+.notif-popup {
+  background: rgba(255, 255, 255, 0.45) !important;
+  /* 45% white background with 20px blur */
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
   border: 1px solid rgba(28, 28, 30, 0.08) !important;
-  box-shadow: 0 20px 48px 0 rgba(28, 28, 30, 0.15) !important; /* Level 3 / Level 4 Shadow */
+  box-shadow: 0 20px 48px 0 rgba(28, 28, 30, 0.15) !important;
+  /* Level 3 / Level 4 Shadow */
   transition: all 300ms ease-in-out !important;
 }
 
 /* Primary Button Design & Micro-Interactions */
-button.bg-primary, .btn-primary {
+button.bg-primary,
+.btn-primary {
   background-color: #1C1C1E !important;
   color: #D4C9BA !important;
   font-weight: 700 !important;
   transition: all 250ms ease-in-out !important;
   cursor: pointer !important;
-  box-shadow: 0 2px 8px rgba(28, 28, 30, 0.08) !important; /* Level 1 Shadow */
+  box-shadow: 0 2px 8px rgba(28, 28, 30, 0.08) !important;
+  /* Level 1 Shadow */
   border-radius: 12px !important;
 }
 
-button.bg-primary:hover:not(:disabled), .btn-primary:hover:not(:disabled) {
+button.bg-primary:hover:not(:disabled),
+.btn-primary:hover:not(:disabled) {
   transform: translateY(-2px) scale(1.02) !important;
-  background-color: #2C2C2E !important; /* Slightly lighter charcoal */
-  box-shadow: 0 8px 20px rgba(28, 28, 30, 0.22) !important; /* Level 4 Shadow */
+  background-color: #2C2C2E !important;
+  /* Slightly lighter charcoal */
+  box-shadow: 0 8px 20px rgba(28, 28, 30, 0.22) !important;
+  /* Level 4 Shadow */
 }
 
-button.bg-primary:active:not(:disabled), .btn-primary:active:not(:disabled) {
+button.bg-primary:active:not(:disabled),
+.btn-primary:active:not(:disabled) {
   transform: translateY(0px) scale(0.98) !important;
 }
 
-button.bg-primary:disabled, .btn-primary:disabled {
+button.bg-primary:disabled,
+.btn-primary:disabled {
   opacity: 0.5 !important;
   transform: none !important;
   box-shadow: none !important;
@@ -86,34 +114,45 @@ button.bg-primary:disabled, .btn-primary:disabled {
 }
 
 /* Secondary Button Design & Hover State */
-button.bg-transparent.border, button.border:not(.bg-primary):not(.bg-white):not(.bg-rose-500):not(.bg-emerald-500) {
+button.bg-transparent.border,
+button.border:not(.bg-primary):not(.bg-white):not(.bg-rose-500):not(.bg-emerald-500) {
   background-color: transparent !important;
   border: 1px solid #1C1C1E !important;
   color: #1C1C1E !important;
   transition: all 200ms ease-in-out !important;
 }
 
-button.bg-transparent.border:hover:not(:disabled), button.border:not(.bg-primary):not(.bg-white):not(.bg-rose-500):not(.bg-emerald-500):hover:not(:disabled) {
-  background-color: rgba(28, 28, 30, 0.06) !important; /* Subtle hover backdrop overlay */
+button.bg-transparent.border:hover:not(:disabled),
+button.border:not(.bg-primary):not(.bg-white):not(.bg-rose-500):not(.bg-emerald-500):hover:not(:disabled) {
+  background-color: rgba(28, 28, 30, 0.06) !important;
+  /* Subtle hover backdrop overlay */
   transform: translateY(-1.5px) scale(1.01) !important;
 }
 
 /* Inputs, Textareas, Selects styling */
-input, select, textarea {
+input,
+select,
+textarea {
   background-color: #ffffff !important;
   color: #1C1C1E !important;
   border: 1px solid rgba(28, 28, 30, 0.15) !important;
   transition: all 200ms ease-in-out !important;
-  border-radius: 0.75rem !important; /* 12px rounded-xl */
+  border-radius: 0.75rem !important;
+  /* 12px rounded-xl */
 }
 
-input::placeholder, textarea::placeholder {
-  color: rgba(28, 28, 30, 0.45) !important; /* Placeholder style */
+input::placeholder,
+textarea::placeholder {
+  color: rgba(28, 28, 30, 0.45) !important;
+  /* Placeholder style */
 }
 
-input:focus, select:focus, textarea:focus {
+input:focus,
+select:focus,
+textarea:focus {
   border-color: #1C1C1E !important;
-  box-shadow: 0 0 0 3px rgba(28, 28, 30, 0.20) !important; /* Focus Ring */
+  box-shadow: 0 0 0 3px rgba(28, 28, 30, 0.20) !important;
+  /* Focus Ring */
   outline: none !important;
 }
 
@@ -132,12 +171,14 @@ table thead th {
 }
 
 table tbody tr {
-  background-color: #ffffff !important; /* Explicitly White row background */
+  background-color: #ffffff !important;
+  /* Explicitly White row background */
   transition: all 200ms ease-in-out !important;
 }
 
 table tbody tr:hover {
-  background-color: rgba(28, 28, 30, 0.04) !important; /* Table Row Hover */
+  background-color: rgba(28, 28, 30, 0.04) !important;
+  /* Table Row Hover */
 }
 
 /* Custom compact elements */
@@ -145,20 +186,25 @@ table tbody tr:hover {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--color-border-sand);
   border-radius: 3px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-primary);
 }
 
 /* Print utilities for receipts and invoices */
 @media print {
-  body, html {
+
+  body,
+  html {
     background: white !important;
     color: black !important;
     width: 100% !important;
@@ -167,15 +213,15 @@ table tbody tr:hover {
     margin: 0 !important;
     padding: 0 !important;
   }
-  
+
   /* Hide all non-essential elements */
-  .no-print, 
-  aside, 
-  header, 
-  nav, 
-  button, 
+  .no-print,
+  aside,
+  header,
+  nav,
+  button,
   .quick-add-menu,
-  input, 
+  input,
   select,
   textarea {
     display: none !important;
@@ -192,7 +238,9 @@ table tbody tr:hover {
   }
 
   /* Expand any glass-card or printable cards to be full page print ready */
-  .glass-card, .print-card, .print-buyer-card {
+  .glass-card,
+  .print-card,
+  .print-buyer-card {
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
@@ -211,10 +259,12 @@ table tbody tr:hover {
     border-collapse: collapse !important;
     page-break-inside: auto !important;
   }
+
   tr {
     page-break-inside: avoid !important;
     page-break-after: auto !important;
   }
+
   thead {
     display: table-header-group !important;
   }

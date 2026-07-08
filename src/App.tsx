@@ -1505,7 +1505,7 @@ export default function App() {
       {/* Responsive Left Sidebar Navigation */}
       <aside 
         className={`fixed inset-y-0 left-0 z-50 md:relative md:translate-x-0 transition-all duration-300 ease-in-out bg-primary border-r border-black/5 text-card-soft flex flex-col justify-between p-4 shrink-0 no-print shadow-xl md:shadow-none h-full
-          ${isMobileOpen ? "translate-x-0 w-[80%] sm:w-[280px]" : "-translate-x-full md:translate-x-0"}
+          ${isMobileOpen ? "translate-x-0 w-[80%] sm:w-[280px] pointer-events-auto opacity-100" : "-translate-x-full md:translate-x-0 pointer-events-none md:pointer-events-auto"}
           ${isCollapsed ? "md:w-[72px]" : "md:w-[280px]"}
         `}
       >
@@ -1626,25 +1626,25 @@ export default function App() {
                 isQuickAddOpen && (
                   <div className="pl-6 pr-2 py-1.5 space-y-1 animate-fade-in flex flex-col gap-0.5">
                     <button 
-                      onClick={() => { setActiveTab("invoices"); }}
+                      onClick={() => { setActiveTab("invoices"); setIsMobileOpen(false); }}
                       className="w-full text-left text-[10px] py-1 text-card-soft/85 hover:text-card-soft font-bold flex items-center gap-1.5"
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-[#D4C9BA]" /> New Invoice
                     </button>
                     <button 
-                      onClick={() => { setActiveTab("quotations"); }}
+                      onClick={() => { setActiveTab("quotations"); setIsMobileOpen(false); }}
                       className="w-full text-left text-[10px] py-1 text-card-soft/85 hover:text-card-soft font-bold flex items-center gap-1.5"
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-[#D4C9BA]" /> New Quotation
                     </button>
                     <button 
-                      onClick={() => { setActiveTab("buyers"); }}
+                      onClick={() => { setActiveTab("buyers"); setIsMobileOpen(false); }}
                       className="w-full text-left text-[10px] py-1 text-card-soft/85 hover:text-card-soft font-bold flex items-center gap-1.5"
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-[#D4C9BA]" /> New Buyer
                     </button>
                     <button 
-                      onClick={() => { setActiveTab("suppliers"); }}
+                      onClick={() => { setActiveTab("suppliers"); setIsMobileOpen(false); }}
                       className="w-full text-left text-[10px] py-1 text-card-soft/85 hover:text-card-soft font-bold flex items-center gap-1.5"
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-[#D4C9BA]" /> New Supplier
