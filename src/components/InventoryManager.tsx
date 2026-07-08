@@ -152,16 +152,16 @@ export default function InventoryManager({
       {/* Materials catalog grid - Left column */}
       <div className="col-span-12 md:col-span-8 glass-card rounded-2xl overflow-hidden flex flex-col h-full">
         {/* Search Header */}
-        <div className="p-3.5 border-b border-border-sand/30 bg-card-soft/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2 w-full sm:w-auto flex-1">
-            <div className="relative flex-1 max-w-sm">
+        <div className="p-3.5 border-b border-border-sand/30 bg-card-soft/40 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto flex-1">
+            <div className="relative flex-1 md:max-w-sm">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone/60" />
               <input 
                 type="text" 
                 placeholder="Search material SKU or name..." 
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-card-soft/60 border border-border-sand rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-primary font-semibold"
+                className="w-full pl-8 pr-3 h-10 bg-card-soft/60 border border-border-sand rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-primary font-semibold"
               />
             </div>
             
@@ -169,7 +169,7 @@ export default function InventoryManager({
             <select
               value={activeCategory}
               onChange={e => setActiveCategory(e.target.value)}
-              className="px-3 py-1.5 border border-border-sand rounded-xl bg-card-soft/60 text-xs font-bold text-charcoal focus:ring-1 focus:ring-primary focus:outline-none"
+              className="px-3 h-10 border border-border-sand rounded-xl bg-card-soft/60 text-xs font-bold text-charcoal focus:ring-1 focus:ring-primary focus:outline-none"
             >
               {categories.map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
@@ -179,7 +179,7 @@ export default function InventoryManager({
 
           <button 
             onClick={startAdd}
-            className="px-3 py-1.5 bg-primary hover:bg-primary-dark text-card-soft font-bold rounded-xl flex items-center gap-1 self-stretch sm:self-auto shrink-0 transition-all active:scale-[0.98]"
+            className="px-4 h-10 bg-primary hover:bg-primary-dark text-card-soft font-bold rounded-xl flex items-center justify-center gap-1.5 self-stretch sm:self-auto shrink-0 transition-all active:scale-[0.98] text-xs"
           >
             <Plus className="w-3.5 h-3.5" /> Add Material
           </button>
@@ -295,37 +295,37 @@ export default function InventoryManager({
               </button>
             </div>
 
-            <div className="space-y-2 flex-1 overflow-y-auto no-scrollbar pr-1">
-              <div>
-                <label className="block text-[10px] font-extrabold text-stone uppercase mb-0.5">Material Name *</label>
-                <input 
-                  type="text" 
-                  required
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  placeholder="e.g., Aluminum Sheets (2mm)" 
-                  className="w-full px-2.5 py-1.5 border border-border-sand rounded-xl bg-card-soft/40 focus:ring-1 focus:ring-primary focus:outline-none font-semibold text-charcoal"
-                />
-              </div>
+            <div className="flex-1 overflow-y-auto no-scrollbar pr-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="col-span-1 md:col-span-2">
+                  <label className="block text-[10px] font-extrabold text-stone uppercase mb-0.5">Material Name *</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    placeholder="e.g., Aluminum Sheets (2mm)" 
+                    className="w-full h-10 px-3 border border-border-sand rounded-xl bg-card-soft/40 focus:ring-1 focus:ring-primary focus:outline-none font-semibold text-charcoal text-xs"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-[10px] font-extrabold text-stone uppercase mb-0.5">SKU Code (Unique ID)</label>
-                <input 
-                  type="text" 
-                  value={sku}
-                  onChange={e => setSku(e.target.value.toUpperCase())}
-                  placeholder="e.g., AL-2MM-P" 
-                  className="w-full px-2.5 py-1.5 border border-border-sand rounded-xl bg-card-soft/40 focus:ring-1 focus:ring-primary focus:outline-none font-mono"
-                />
-              </div>
+                <div className="col-span-1 md:col-span-2">
+                  <label className="block text-[10px] font-extrabold text-stone uppercase mb-0.5">SKU Code (Unique ID)</label>
+                  <input 
+                    type="text" 
+                    value={sku}
+                    onChange={e => setSku(e.target.value.toUpperCase())}
+                    placeholder="e.g., AL-2MM-P" 
+                    className="w-full h-10 px-3 border border-border-sand rounded-xl bg-card-soft/40 focus:ring-1 focus:ring-primary focus:outline-none font-mono text-xs"
+                  />
+                </div>
 
-              <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[10px] font-extrabold text-stone uppercase mb-0.5">Category</label>
                   <select 
                     value={category}
                     onChange={e => setCategory(e.target.value)}
-                    className="w-full px-2.5 py-1.5 border border-border-sand rounded-xl bg-card-soft/40 font-bold focus:ring-1 focus:ring-primary text-charcoal focus:outline-none"
+                    className="w-full h-10 px-3 border border-border-sand rounded-xl bg-card-soft/40 font-bold focus:ring-1 focus:ring-primary text-charcoal focus:outline-none text-xs"
                   >
                     <option value="Metals">Metals</option>
                     <option value="Chemicals">Chemicals</option>
@@ -344,12 +344,10 @@ export default function InventoryManager({
                     value={unit}
                     onChange={e => setUnit(e.target.value)}
                     placeholder="kg, sheets, liters" 
-                    className="w-full px-2.5 py-1.5 border border-border-sand rounded-xl bg-card-soft/40 focus:ring-1 focus:ring-primary focus:outline-none font-semibold text-charcoal"
+                    className="w-full h-10 px-3 border border-border-sand rounded-xl bg-card-soft/40 focus:ring-1 focus:ring-primary focus:outline-none font-semibold text-charcoal text-xs"
                   />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[10px] font-extrabold text-stone uppercase mb-0.5">Purchase Rate ({currency})</label>
                   <input 
@@ -357,7 +355,7 @@ export default function InventoryManager({
                     value={defaultPurchaseRate}
                     onChange={e => setDefaultPurchaseRate(e.target.value)}
                     placeholder="0.00" 
-                    className="w-full px-2.5 py-1.5 border border-border-sand rounded-xl bg-card-soft/40 focus:ring-1 focus:ring-primary focus:outline-none font-semibold text-charcoal"
+                    className="w-full h-10 px-3 border border-border-sand rounded-xl bg-card-soft/40 focus:ring-1 focus:ring-primary focus:outline-none font-semibold text-charcoal text-xs"
                   />
                 </div>
 
@@ -368,12 +366,10 @@ export default function InventoryManager({
                     value={defaultSalesRate}
                     onChange={e => setDefaultSalesRate(e.target.value)}
                     placeholder="0.00" 
-                    className="w-full px-2.5 py-1.5 border border-border-sand rounded-xl bg-card-soft/40 focus:ring-1 focus:ring-primary focus:outline-none font-semibold text-charcoal"
+                    className="w-full h-10 px-3 border border-border-sand rounded-xl bg-card-soft/40 focus:ring-1 focus:ring-primary focus:outline-none font-semibold text-charcoal text-xs"
                   />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[10px] font-extrabold text-stone uppercase mb-0.5">Low Stock Warning Level</label>
                   <input 
@@ -381,11 +377,11 @@ export default function InventoryManager({
                     value={minStockLevel}
                     onChange={e => setMinStockLevel(e.target.value)}
                     placeholder="50" 
-                    className="w-full px-2.5 py-1.5 border border-border-sand rounded-xl bg-card-soft/40 focus:ring-1 focus:ring-primary focus:outline-none font-semibold text-charcoal"
+                    className="w-full h-10 px-3 border border-border-sand rounded-xl bg-card-soft/40 focus:ring-1 focus:ring-primary focus:outline-none font-semibold text-charcoal text-xs"
                   />
                 </div>
 
-                {isAdding && (
+                {isAdding ? (
                   <div>
                     <label className="block text-[10px] font-extrabold text-stone uppercase mb-0.5">Initial Stock Qty</label>
                     <input 
@@ -393,16 +389,18 @@ export default function InventoryManager({
                       value={currentStock}
                       onChange={e => setCurrentStock(e.target.value)}
                       placeholder="0" 
-                      className="w-full px-2.5 py-1.5 border border-border-sand rounded-xl bg-card-soft/40 focus:ring-1 focus:ring-primary focus:outline-none font-semibold text-charcoal"
+                      className="w-full h-10 px-3 border border-border-sand rounded-xl bg-card-soft/40 focus:ring-1 focus:ring-primary focus:outline-none font-semibold text-charcoal text-xs"
                     />
                   </div>
+                ) : (
+                  <div className="hidden md:block" />
                 )}
               </div>
             </div>
 
             <button 
               type="submit" 
-              className="w-full py-2.5 bg-primary hover:bg-primary-dark text-card-soft font-bold rounded-xl shadow-md mt-4 shrink-0 text-xs transition-all active:scale-[0.98]"
+              className="w-full h-10 bg-primary hover:bg-primary-dark text-card-soft font-bold rounded-xl shadow-md mt-4 shrink-0 text-xs transition-all active:scale-[0.98] flex items-center justify-center"
             >
               {isAdding ? "Save Item Catalog" : "Apply Spec Changes"}
             </button>
@@ -437,7 +435,7 @@ export default function InventoryManager({
                 <select 
                   value={adjType}
                   onChange={e => setAdjType(e.target.value as any)}
-                  className="w-full px-2.5 py-1.5 border border-border-sand rounded-xl bg-card-soft/40 font-bold focus:ring-1 focus:ring-primary focus:outline-none text-charcoal"
+                  className="w-full h-10 px-3 border border-border-sand rounded-xl bg-card-soft/40 font-bold focus:ring-1 focus:ring-primary focus:outline-none text-charcoal text-xs"
                 >
                   <option value="add">Add Inward Stock (Delivery / Stock refill)</option>
                   <option value="remove">Remove Outward Stock (Dispatched / Consumed)</option>
@@ -453,7 +451,7 @@ export default function InventoryManager({
                   value={adjQty}
                   onChange={e => setAdjQty(e.target.value)}
                   placeholder="10" 
-                  className="w-full px-2.5 py-1.5 border border-border-sand rounded-xl bg-card-soft/40 focus:ring-1 focus:ring-primary focus:outline-none font-semibold text-charcoal"
+                  className="w-full h-10 px-3 border border-border-sand rounded-xl bg-card-soft/40 focus:ring-1 focus:ring-primary focus:outline-none font-semibold text-charcoal text-xs"
                 />
               </div>
 
@@ -463,14 +461,14 @@ export default function InventoryManager({
                   value={adjNotes}
                   onChange={e => setAdjNotes(e.target.value)}
                   placeholder="e.g., Received stock from supplier Apex Steel" 
-                  className="w-full h-16 px-2.5 py-1.5 border border-border-sand rounded-xl bg-card-soft/40 focus:ring-1 focus:ring-primary focus:outline-none resize-none font-semibold text-charcoal"
+                  className="w-full h-16 px-3 py-2 border border-border-sand rounded-xl bg-card-soft/40 focus:ring-1 focus:ring-primary focus:outline-none resize-none font-semibold text-charcoal text-xs"
                 />
               </div>
             </div>
 
             <button 
               type="submit" 
-              className="w-full py-2.5 bg-primary hover:bg-primary-dark text-card-soft font-bold rounded-xl shadow-md mt-4 shrink-0 text-xs transition-all active:scale-[0.98]"
+              className="w-full h-10 bg-primary hover:bg-primary-dark text-card-soft font-bold rounded-xl shadow-md mt-4 shrink-0 text-xs transition-all active:scale-[0.98] flex items-center justify-center"
             >
               Verify Stock Adjustment
             </button>
