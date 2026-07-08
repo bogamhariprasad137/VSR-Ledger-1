@@ -186,93 +186,95 @@ export default function InventoryManager({
         </div>
 
         {/* Materials Table */}
-        <div className="flex-1 overflow-y-auto overflow-x-auto max-h-[500px] no-scrollbar">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-card-soft/40 text-stone font-extrabold uppercase tracking-wider text-[10px] border-b border-border-sand/30">
-                <th className="px-4 py-2.5">SKU / Item</th>
-                <th className="px-4 py-2.5">Category</th>
-                <th className="px-4 py-2.5">Sales Rate</th>
-                <th className="px-4 py-2.5">Purchase Rate</th>
-                <th className="px-4 py-2.5 text-right">Qty On Hand</th>
-                <th className="px-4 py-2.5 text-right">Min Safe</th>
-                <th className="px-4 py-2.5 text-right">Stock Status</th>
-                <th className="px-4 py-2.5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border-sand/20 font-bold text-stone">
-              {filteredMaterials.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="p-8 text-center text-stone">
-                    No matching catalog materials found.
-                  </td>
+        <div className="flex-1 overflow-y-auto overflow-hidden max-h-[500px] no-scrollbar">
+          <div className="w-full overflow-x-auto block mt-4">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-card-soft/40 text-stone font-extrabold uppercase tracking-wider text-[10px] border-b border-border-sand/30">
+                  <th className="px-4 py-2.5">SKU / Item</th>
+                  <th className="px-4 py-2.5">Category</th>
+                  <th className="px-4 py-2.5">Sales Rate</th>
+                  <th className="px-4 py-2.5">Purchase Rate</th>
+                  <th className="px-4 py-2.5 text-right">Qty On Hand</th>
+                  <th className="px-4 py-2.5 text-right">Min Safe</th>
+                  <th className="px-4 py-2.5 text-right">Stock Status</th>
+                  <th className="px-4 py-2.5 text-right">Actions</th>
                 </tr>
-              ) : (
-                filteredMaterials.map(m => {
-                  const isLow = m.currentStock <= m.minStockLevel;
-                  const isCritical = m.currentStock <= m.minStockLevel * 0.3;
+              </thead>
+              <tbody className="divide-y divide-border-sand/20 font-bold text-stone">
+                {filteredMaterials.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="p-8 text-center text-stone">
+                      No matching catalog materials found.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredMaterials.map(m => {
+                    const isLow = m.currentStock <= m.minStockLevel;
+                    const isCritical = m.currentStock <= m.minStockLevel * 0.3;
 
-                  return (
-                    <tr 
-                      key={m.id} 
-                      className={`hover:bg-card-soft/30 cursor-pointer transition-colors ${selectedMaterialId === m.id ? "bg-primary/10" : ""}`}
-                      onClick={() => { setSelectedMaterialId(m.id); setIsAdding(false); setIsEditing(false); setIsAdjusting(false); }}
-                    >
-                      <td className="px-4 py-2.5">
-                        <p className="font-extrabold text-charcoal">{m.name}</p>
-                        <p className="text-[9px] text-stone/70 font-mono mt-0.5">{m.sku}</p>
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <span className="bg-card-soft/80 text-stone px-2 py-0.5 rounded-full text-[9px] uppercase font-extrabold">
-                          {m.category}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 font-mono text-charcoal">{currency}{m.defaultSalesRate}/{m.unit}</td>
-                      <td className="px-4 py-2.5 font-mono text-stone">{currency}{m.defaultPurchaseRate}/{m.unit}</td>
-                      <td className="px-4 py-2.5 text-right font-mono font-extrabold text-charcoal">
-                        {m.currentStock} <span className="text-[10px] text-stone font-normal">{m.unit}</span>
-                      </td>
-                      <td className="px-4 py-2.5 text-right font-mono text-stone">{m.minStockLevel}</td>
-                      <td className="px-4 py-2.5 text-right">
-                        {isCritical ? (
-                          <span className="px-2 py-0.5 bg-rose-500/10 text-rose-600 font-extrabold rounded-full text-[9px]">CRITICAL</span>
-                        ) : isLow ? (
-                          <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 font-extrabold rounded-full text-[9px]">LOW</span>
-                        ) : (
-                          <span className="px-2 py-0.5 bg-primary/20 text-primary-dark font-extrabold rounded-full text-[9px]">HEALTHY</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-right font-semibold" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button 
-                            onClick={() => startAdjust(m)}
-                            className="p-1.5 bg-primary/10 hover:bg-primary/20 text-primary-dark rounded-xl transition-all" 
-                            title="Quick Stock Refill / Adjustment"
-                          >
-                            <RefreshCw className="w-3.5 h-3.5" />
-                          </button>
-                          <button 
-                            onClick={() => startEdit(m)}
-                            className="p-1.5 bg-card-soft hover:bg-card-soft/80 text-stone rounded-xl border border-border-sand/30 transition-all"
-                            title="Edit Material Specs"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(m.id)}
-                            className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 rounded-xl transition-all"
-                            title="Purge Catalog Item"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                    return (
+                      <tr 
+                        key={m.id} 
+                        className={`hover:bg-card-soft/30 cursor-pointer transition-colors ${selectedMaterialId === m.id ? "bg-primary/10" : ""}`}
+                        onClick={() => { setSelectedMaterialId(m.id); setIsAdding(false); setIsEditing(false); setIsAdjusting(false); }}
+                      >
+                        <td className="px-4 py-2.5">
+                          <p className="font-extrabold text-charcoal">{m.name}</p>
+                          <p className="text-[9px] text-stone/70 font-mono mt-0.5">{m.sku}</p>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className="bg-card-soft/80 text-stone px-2 py-0.5 rounded-full text-[9px] uppercase font-extrabold">
+                            {m.category}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 font-mono text-charcoal">{currency}{m.defaultSalesRate}/{m.unit}</td>
+                        <td className="px-4 py-2.5 font-mono text-stone">{currency}{m.defaultPurchaseRate}/{m.unit}</td>
+                        <td className="px-4 py-2.5 text-right font-mono font-extrabold text-charcoal">
+                          {m.currentStock} <span className="text-[10px] text-stone font-normal">{m.unit}</span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-mono text-stone">{m.minStockLevel}</td>
+                        <td className="px-4 py-2.5 text-right">
+                          {isCritical ? (
+                            <span className="px-2 py-0.5 bg-rose-500/10 text-rose-600 font-extrabold rounded-full text-[9px]">CRITICAL</span>
+                          ) : isLow ? (
+                            <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 font-extrabold rounded-full text-[9px]">LOW</span>
+                          ) : (
+                            <span className="px-2 py-0.5 bg-primary/20 text-primary-dark font-extrabold rounded-full text-[9px]">HEALTHY</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-semibold" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button 
+                              onClick={() => startAdjust(m)}
+                              className="p-1.5 bg-primary/10 hover:bg-primary/20 text-primary-dark rounded-xl transition-all" 
+                              title="Quick Stock Refill / Adjustment"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" />
+                            </button>
+                            <button 
+                              onClick={() => startEdit(m)}
+                              className="p-1.5 bg-card-soft hover:bg-card-soft/80 text-stone rounded-xl border border-border-sand/30 transition-all"
+                              title="Edit Material Specs"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(m.id)}
+                              className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 rounded-xl transition-all"
+                              title="Purge Catalog Item"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 

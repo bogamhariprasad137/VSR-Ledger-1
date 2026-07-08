@@ -10,6 +10,7 @@ import {
   FileSpreadsheet, RefreshCw, User, Menu, Search, Bell, X, ChevronDown
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
+import { NavLink } from "react-router-dom";
 
 // Components
 import NotesWidget from "./components/NotesWidget";
@@ -1561,7 +1562,8 @@ export default function App() {
 
               return (
                 <div key={item.id} className="relative group">
-                  <button
+                  <NavLink
+                    to={item.id === "dashboard" ? "/" : `/${item.id}`}
                     onClick={() => {
                       if (item.id === "catalog") {
                         setActiveTab("inventory");
@@ -1575,6 +1577,7 @@ export default function App() {
                         ? "bg-[#D4C9BA] text-[#1C1C1E] shadow-sm font-extrabold" 
                         : "text-[#D4C9BA]/85 hover:text-[#D4C9BA] hover:bg-[rgba(212,201,186,0.15)]"
                     }`}
+                    style={{ textDecoration: "none", display: "flex" }}
                   >
                     {/* Left Accent indicator for active item */}
                     {isSelected && (
@@ -1586,7 +1589,7 @@ export default function App() {
                     {(!isCollapsed || isMobileOpen) && (
                       <span className="truncate">{item.label}</span>
                     )}
-                  </button>
+                  </NavLink>
 
                   {/* Tooltip for collapsed mode on md screens */}
                   {isCollapsed && !isMobileOpen && (
