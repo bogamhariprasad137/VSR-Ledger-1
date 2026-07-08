@@ -419,11 +419,11 @@ Thank you for your business!`;
       </div>
 
       {/* Invoice details right area */}
-      <div className={`col-span-12 ${selectedInvoiceId ? "md:col-span-8" : "md:col-span-12 hidden md:flex"} glass-card rounded-2xl p-4 md:p-6 flex flex-col min-h-[500px]`}>
+      <div className={`col-span-12 ${selectedInvoiceId || isAdding ? "md:col-span-8" : "md:col-span-12 hidden md:flex"} glass-card rounded-2xl p-4 md:p-6 flex flex-col min-h-[500px]`}>
         
         {/* ADD VIEW */}
         {isAdding ? (
-          <form onSubmit={handleSaveInvoice} className="p-4 flex flex-col h-full space-y-4 max-h-[650px] overflow-y-auto bg-card-soft/10 no-scrollbar">
+          <form onSubmit={handleSaveInvoice} className="p-4 flex flex-col h-full space-y-4 max-h-[85vh] md:max-h-none overflow-y-auto pb-20 bg-card-soft/10 no-scrollbar">
             <div className="flex justify-between items-center border-b border-border-sand/30 pb-2">
               <h3 className="font-bold text-charcoal text-sm font-display">Generate Customer Invoice (Auto-Numbered)</h3>
               <button 
