@@ -863,11 +863,24 @@ export default function App() {
   const handleDeleteMaterial = async (id: string) => {
     if (!supabase) return;
     try {
-      await supabase.from("materials").delete().eq("id", id);
-      await fetchAllData();
+      // 1. Delete associated child records first to satisfy foreign key constraints
+      await supabase.from("inventory_transactions").delete().eq("material_id", id);
+      await supabase.from("quotation_items").delete().eq("material_id", id);
+      await supabase.from("invoice_items").delete().eq("material_id", id);
+
+      // 2. Delete the material
+      const { error } = await supabase.from("materials").delete().eq("id", id);
+      if (error) throw error;
+
+      // 3. Update React state immediately
+      setMaterials(prev => prev.filter(m => m.id !== id));
       saveLogs("Delete", "Inventory", `Removed item ID ${id} from catalog`);
-    } catch (e) {
-      console.error(e);
+      showToast("Material deleted successfully.", "success");
+
+      await fetchAllData();
+    } catch (e: any) {
+      console.error("Failed to delete material:", e);
+      showToast(e.message || "Failed to delete material.", "error");
     }
   };
 
