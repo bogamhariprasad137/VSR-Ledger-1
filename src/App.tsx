@@ -1043,11 +1043,21 @@ export default function App() {
   const handleDeleteQuotation = async (id: string) => {
     if (!supabase) return;
     try {
-      await supabase.from("quotations").delete().eq("id", id);
-      await fetchAllData();
+      // 1. Delete associated quotation items first to satisfy foreign key constraints
+      await supabase.from("quotation_items").delete().eq("quotation_id", id);
+      // 2. Delete the quotation
+      const { error } = await supabase.from("quotations").delete().eq("id", id);
+      if (error) throw error;
+
+      // 3. Update React state immediately
+      setQuotations(prev => prev.filter(q => q.id !== id));
       saveLogs("Delete", "Quotations", `Removed proposal quotation ID ${id}`);
-    } catch (e) {
-      console.error(e);
+      showToast("Quotation deleted successfully.", "success");
+
+      await fetchAllData();
+    } catch (e: any) {
+      console.error("Failed to delete quotation:", e);
+      showToast(e.message || "Failed to delete quotation.", "error");
     }
   };
 
@@ -1280,11 +1290,24 @@ export default function App() {
         }]);
       }
 
-      await supabase.from("invoices").delete().eq("id", id);
-      await fetchAllData();
+      // 1. Delete associated child records first to satisfy foreign key constraints
+      await supabase.from("invoice_items").delete().eq("invoice_id", id);
+      await supabase.from("payments").delete().eq("invoice_id", id);
+      await supabase.from("invoice_attachments").delete().eq("invoice_id", id);
+
+      // 2. Delete the invoice
+      const { error } = await supabase.from("invoices").delete().eq("id", id);
+      if (error) throw error;
+
+      // 3. Update React state immediately
+      setInvoices(prev => prev.filter(inv => inv.id !== id));
       saveLogs("Delete", "Invoices", `Purged invoice ID ${id}, reversed balance, and restored stock balance`);
-    } catch (e) {
-      console.error(e);
+      showToast("Invoice deleted successfully.", "success");
+
+      await fetchAllData();
+    } catch (e: any) {
+      console.error("Failed to delete invoice:", e);
+      showToast(e.message || "Failed to delete invoice.", "error");
     }
   };
 
