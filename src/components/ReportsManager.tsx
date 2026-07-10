@@ -4,6 +4,7 @@ import {
   BarChart, Download, FileSpreadsheet, FileText, TrendingUp, DollarSign,
   Briefcase, Activity, Calendar, Tag, ShieldCheck, PieChart
 } from "lucide-react";
+import { safeRound, roundCurrency, roundQuantity, safeAdd, safeSubtract, safeMultiply, safeDivide } from "../lib/mathUtils";
 
 interface ReportsManagerProps {
   invoices: Invoice[];
@@ -24,11 +25,11 @@ export default function ReportsManager({
   const [profitSubTab, setProfitSubTab] = useState<"invoice" | "buyer" | "supplier" | "material" | "period" | "top-least">("invoice");
 
   // Summary computations
-  const grossSalesTotal = invoices.reduce((sum, inv) => sum + inv.total, 0);
-  const taxableSalesTotal = invoices.reduce((sum, inv) => sum + inv.subtotal, 0);
-  const gstCollectedTotal = invoices.reduce((sum, inv) => sum + inv.taxAmount, 0);
-  const outstandingReceivables = invoices.reduce((sum, inv) => sum + inv.balanceDue, 0);
-  const outstandingPayables = suppliers.reduce((sum, sup) => sum + sup.outstandingPayable, 0);
+  const grossSalesTotal = invoices.reduce((sum, inv) => safeAdd(sum, inv.total), 0);
+  const taxableSalesTotal = invoices.reduce((sum, inv) => safeAdd(sum, inv.subtotal), 0);
+  const gstCollectedTotal = invoices.reduce((sum, inv) => safeAdd(sum, inv.taxAmount), 0);
+  const outstandingReceivables = invoices.reduce((sum, inv) => safeAdd(sum, inv.balanceDue), 0);
+  const outstandingPayables = suppliers.reduce((sum, sup) => safeAdd(sum, sup.outstandingPayable), 0);
 
   // Profit calculation (COGS based)
   const calculateCOGS = () => {
@@ -37,18 +38,18 @@ export default function ReportsManager({
       inv.items.forEach(it => {
         const mat = materials.find(m => m.id === it.materialId);
         if (mat) {
-          cogs += it.quantity * mat.defaultPurchaseRate;
+          cogs = safeAdd(cogs, safeMultiply(it.quantity, mat.defaultPurchaseRate));
         } else {
-          cogs += it.quantity * (it.rate * 0.7); // default 30% margin fallback
+          cogs = safeAdd(cogs, safeMultiply(it.quantity, safeMultiply(it.rate, 0.7))); // default 30% margin fallback
         }
       });
     });
-    return Math.round(cogs);
+    return roundCurrency(cogs);
   };
 
   const totalCOGS = calculateCOGS();
-  const netProfit = Math.max(0, taxableSalesTotal - totalCOGS);
-  const profitMarginPercent = taxableSalesTotal > 0 ? Math.round((netProfit / taxableSalesTotal) * 100) : 0;
+  const netProfit = Math.max(0, safeSubtract(taxableSalesTotal, totalCOGS));
+  const profitMarginPercent = taxableSalesTotal > 0 ? safeRound((netProfit / taxableSalesTotal) * 100, 2) : 0;
 
   // --- CSV Export Helper ---
   const downloadCSV = (filename: string, headers: string[], rows: string[][]) => {
@@ -510,10 +511,10 @@ export default function ReportsManager({
                     <tbody className="divide-y divide-border-sand/20 font-mono text-[10px]">
                       {invoices.map(inv => {
                         const b = buyers.find(buyer => buyer.id === inv.buyerId);
-                        const sell = inv.items.reduce((sum, it) => sum + (it.quantity * (it.selling_rate || it.rate || 0)), 0);
-                        const buy = inv.items.reduce((sum, it) => sum + (it.quantity * (it.purchase_rate || 0)), 0);
-                        const trans = inv.items.reduce((sum, it) => sum + (it.transportation_amount || 0), 0);
-                        const profit = sell - buy - trans;
+                        const sell = inv.items.reduce((sum, it) => safeAdd(sum, safeMultiply(it.quantity, it.selling_rate || it.rate || 0)), 0);
+                        const buy = inv.items.reduce((sum, it) => safeAdd(sum, safeMultiply(it.quantity, it.purchase_rate || 0)), 0);
+                        const trans = inv.items.reduce((sum, it) => safeAdd(sum, it.transportation_amount || 0), 0);
+                        const profit = safeSubtract(safeSubtract(sell, buy), trans);
                         const margin = sell > 0 ? (profit / sell) * 100 : 0;
                         return (
                           <tr key={inv.id} className="hover:bg-card-soft/30 transition-colors">
@@ -558,12 +559,12 @@ export default function ReportsManager({
                         let sell = 0, buy = 0, trans = 0;
                         bInvs.forEach(inv => {
                           inv.items.forEach(it => {
-                            sell += it.quantity * (it.selling_rate || it.rate || 0);
-                            buy += it.quantity * (it.purchase_rate || 0);
-                            trans += it.transportation_amount || 0;
+                            sell = safeAdd(sell, safeMultiply(it.quantity, it.selling_rate || it.rate || 0));
+                            buy = safeAdd(buy, safeMultiply(it.quantity, it.purchase_rate || 0));
+                            trans = safeAdd(trans, it.transportation_amount || 0);
                           });
                         });
-                        const profit = sell - buy - trans;
+                        const profit = safeSubtract(safeSubtract(sell, buy), trans);
                         const margin = sell > 0 ? (profit / sell) * 100 : 0;
                         if (bInvs.length === 0) return null;
                         return (
@@ -645,14 +646,14 @@ export default function ReportsManager({
                         invoices.forEach(inv => {
                           inv.items.forEach(it => {
                             if (it.materialId === m.id) {
-                              qty += it.quantity;
-                              sell += it.quantity * (it.selling_rate || it.rate || 0);
-                              buy += it.quantity * (it.purchase_rate || 0);
-                              trans += it.transportation_amount || 0;
+                              qty = roundQuantity(qty + it.quantity);
+                              sell = safeAdd(sell, safeMultiply(it.quantity, it.selling_rate || it.rate || 0));
+                              buy = safeAdd(buy, safeMultiply(it.quantity, it.purchase_rate || 0));
+                              trans = safeAdd(trans, it.transportation_amount || 0);
                             }
                           });
                         });
-                        const profit = sell - buy - trans;
+                        const profit = safeSubtract(safeSubtract(sell, buy), trans);
                         const margin = sell > 0 ? (profit / sell) * 100 : 0;
                         if (qty === 0) return null;
                         return (
@@ -688,22 +689,22 @@ export default function ReportsManager({
                   
                   let sell = 0, buy = 0, trans = 0;
                   inv.items.forEach(it => {
-                    sell += it.quantity * (it.selling_rate || it.rate || 0);
-                    buy += it.quantity * (it.purchase_rate || 0);
-                    trans += it.transportation_amount || 0;
+                    sell = safeAdd(sell, safeMultiply(it.quantity, it.selling_rate || it.rate || 0));
+                    buy = safeAdd(buy, safeMultiply(it.quantity, it.purchase_rate || 0));
+                    trans = safeAdd(trans, it.transportation_amount || 0);
                   });
                   
                   if (!monthlyMap[month]) monthlyMap[month] = { count: 0, sell: 0, buy: 0, trans: 0 };
                   monthlyMap[month].count++;
-                  monthlyMap[month].sell += sell;
-                  monthlyMap[month].buy += buy;
-                  monthlyMap[month].trans += trans;
+                  monthlyMap[month].sell = safeAdd(monthlyMap[month].sell, sell);
+                  monthlyMap[month].buy = safeAdd(monthlyMap[month].buy, buy);
+                  monthlyMap[month].trans = safeAdd(monthlyMap[month].trans, trans);
                   
                   if (!yearlyMap[year]) yearlyMap[year] = { count: 0, sell: 0, buy: 0, trans: 0 };
                   yearlyMap[year].count++;
-                  yearlyMap[year].sell += sell;
-                  yearlyMap[year].buy += buy;
-                  yearlyMap[year].trans += trans;
+                  yearlyMap[year].sell = safeAdd(yearlyMap[year].sell, sell);
+                  yearlyMap[year].buy = safeAdd(yearlyMap[year].buy, buy);
+                  yearlyMap[year].trans = safeAdd(yearlyMap[year].trans, trans);
                 });
                 
                 return (
@@ -776,14 +777,14 @@ export default function ReportsManager({
                   invoices.forEach(inv => {
                     inv.items.forEach(it => {
                       if (it.materialId === m.id) {
-                        qty += it.quantity;
-                        sell += it.quantity * (it.selling_rate || it.rate || 0);
-                        buy += it.quantity * (it.purchase_rate || 0);
-                        trans += it.transportation_amount || 0;
+                        qty = roundQuantity(qty + it.quantity);
+                        sell = safeAdd(sell, safeMultiply(it.quantity, it.selling_rate || it.rate || 0));
+                        buy = safeAdd(buy, safeMultiply(it.quantity, it.purchase_rate || 0));
+                        trans = safeAdd(trans, it.transportation_amount || 0);
                       }
                     });
                   });
-                  const profit = sell - buy - trans;
+                  const profit = safeSubtract(safeSubtract(sell, buy), trans);
                   const margin = sell > 0 ? (profit / sell) * 100 : 0;
                   return { name: m.name, qty, profit, margin, unit: m.unit };
                 }).filter(st => st.qty > 0);

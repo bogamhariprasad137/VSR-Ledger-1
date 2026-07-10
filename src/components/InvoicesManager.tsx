@@ -5,6 +5,7 @@ import {
   Send, Image, Eye, DollarSign, Calendar, X, ShoppingBag, Landmark,
   Smartphone, ShieldAlert, ArrowLeftRight, Copy, HelpCircle, FileCheck
 } from "lucide-react";
+import { safeRound, roundCurrency, roundQuantity, safeAdd, safeSubtract, safeMultiply, safeDivide } from "../lib/mathUtils";
 
 interface InvoicesManagerProps {
   invoices: Invoice[];
@@ -69,16 +70,16 @@ export default function InvoicesManager({
     const trans = Number(updated[idx].transportation_amount || 0);
     const buy_rate = Number(updated[idx].purchase_rate || 0);
     
-    updated[idx].amount = qty * rate;
+    updated[idx].amount = safeMultiply(qty, rate);
     updated[idx].selling_rate = rate;
     
-    const sellingAmount = qty * rate;
-    const purchaseAmount = qty * buy_rate;
-    const profit = sellingAmount - purchaseAmount - trans;
+    const sellingAmount = safeMultiply(qty, rate);
+    const purchaseAmount = safeMultiply(qty, buy_rate);
+    const profit = safeSubtract(safeSubtract(sellingAmount, purchaseAmount), trans);
     const margin = sellingAmount > 0 ? (profit / sellingAmount) * 100 : 0;
     
     updated[idx].profit = profit;
-    updated[idx].margin_percentage = Math.round(margin * 100) / 100;
+    updated[idx].margin_percentage = safeRound(margin, 2);
     
     setSelectedItems(updated);
   };
@@ -123,27 +124,52 @@ export default function InvoicesManager({
     const material = materials.find(m => m.id === tempMaterialId);
     if (!material) return;
 
+    const qtyValNum = parseFloat(tempQty);
+    const rateValNum = parseFloat(tempRate) || material.defaultSalesRate;
+
+    // Validation
+    if (isNaN(qtyValNum) || qtyValNum <= 0 || tempQty.trim() === "") {
+      alert("Please enter a valid positive quantity.");
+      return;
+    }
+    if (isNaN(rateValNum) || rateValNum < 0 || tempRate.trim() === "") {
+      alert("Please enter a valid rate.");
+      return;
+    }
+
     // Check duplicates
     const existingIdx = selectedItems.findIndex(it => it.materialId === tempMaterialId);
     if (existingIdx !== -1) {
       const updated = [...selectedItems];
-      updated[existingIdx].quantity += Number(tempQty) || 1;
-      updated[existingIdx].amount = updated[existingIdx].quantity * updated[existingIdx].rate;
+      const newQty = roundQuantity(Number(updated[existingIdx].quantity) + qtyValNum);
+      const newRate = Number(updated[existingIdx].rate);
+      updated[existingIdx].quantity = newQty;
+      updated[existingIdx].amount = safeMultiply(newQty, newRate);
+      
+      const buy_rate = Number(updated[existingIdx].purchase_rate || 0);
+      const trans = Number(updated[existingIdx].transportation_amount || 0);
+      const sellingAmount = safeMultiply(newQty, newRate);
+      const purchaseAmount = safeMultiply(newQty, buy_rate);
+      const profit = safeSubtract(safeSubtract(sellingAmount, purchaseAmount), trans);
+      const margin = sellingAmount > 0 ? (profit / sellingAmount) * 100 : 0;
+      
+      updated[existingIdx].profit = profit;
+      updated[existingIdx].margin_percentage = safeRound(margin, 2);
       setSelectedItems(updated);
     } else {
-      const rateVal = Number(tempRate) || material.defaultSalesRate;
-      const qtyVal = Number(tempQty) || 1;
       const newItem: InvoiceItem = {
         materialId: tempMaterialId,
         name: material.name,
-        quantity: qtyVal,
-        rate: rateVal,
-        amount: qtyVal * rateVal,
+        quantity: qtyValNum,
+        rate: rateValNum,
+        amount: safeMultiply(qtyValNum, rateValNum),
         transportation_amount: 0,
         transport_supplier_id: "",
         transportation_notes: "",
         purchase_rate: material.defaultPurchaseRate,
-        selling_rate: rateVal
+        selling_rate: rateValNum,
+        profit: safeSubtract(safeMultiply(qtyValNum, rateValNum), safeMultiply(qtyValNum, material.defaultPurchaseRate)),
+        margin_percentage: safeRound((safeSubtract(rateValNum, material.defaultPurchaseRate) / (rateValNum || 1)) * 100, 2)
       };
       setSelectedItems([...selectedItems, newItem]);
     }
@@ -164,16 +190,40 @@ export default function InvoicesManager({
       return;
     }
 
-    const materialSubtotal = selectedItems.reduce((sum, it) => sum + it.amount, 0);
-    const itemTransportTotal = selectedItems.reduce((sum, it) => sum + (it.transportation_amount || 0), 0);
-    const transportTotal = itemTransportTotal + (Number(globalTransportAmount) || 0);
-    const taxAmt = Math.round(materialSubtotal * (defaultGstRate / 100));
-    const grossTotal = materialSubtotal + taxAmt + transportTotal;
+    // Validate quantities and rates for all selected items
+    for (const it of selectedItems) {
+      const q = parseFloat(String(it.quantity));
+      const r = parseFloat(String(it.rate));
+      if (isNaN(q) || q <= 0 || String(it.quantity).trim() === "") {
+        alert(`Please enter a valid positive quantity for item: ${it.name}`);
+        return;
+      }
+      if (isNaN(r) || r < 0 || String(it.rate).trim() === "") {
+        alert(`Please enter a valid rate for item: ${it.name}`);
+        return;
+      }
+    }
+
+    const materialSubtotal = selectedItems.reduce((sum, it) => safeAdd(sum, it.amount), 0);
+    const itemTransportTotal = selectedItems.reduce((sum, it) => safeAdd(sum, it.transportation_amount || 0), 0);
+    const transportTotal = safeAdd(itemTransportTotal, Number(globalTransportAmount) || 0);
+    const taxAmt = safeRound(materialSubtotal * (defaultGstRate / 100), 2);
+    const grossTotal = safeAdd(safeAdd(materialSubtotal, taxAmt), transportTotal);
 
     onAddInvoice({
       buyerId,
       date,
-      items: selectedItems,
+      items: selectedItems.map(it => ({
+        ...it,
+        quantity: roundQuantity(Number(it.quantity)),
+        rate: roundCurrency(Number(it.rate)),
+        amount: safeMultiply(Number(it.quantity), Number(it.rate)),
+        transportation_amount: roundCurrency(Number(it.transportation_amount || 0)),
+        purchase_rate: roundCurrency(Number(it.purchase_rate || 0)),
+        selling_rate: roundCurrency(Number(it.rate)),
+        profit: roundCurrency(Number(it.profit || 0)),
+        margin_percentage: roundCurrency(Number(it.margin_percentage || 0))
+      })),
       notes,
       status: "unpaid",
       subtotal: materialSubtotal,
@@ -488,6 +538,8 @@ Thank you for your business!`;
                   <label className="block text-[9px] font-extrabold text-stone uppercase mb-0.5">Quantity</label>
                   <input 
                     type="number" 
+                    step="any"
+                    min="0"
                     value={tempQty}
                     onChange={e => setTempQty(e.target.value)}
                     placeholder="10"
@@ -499,6 +551,8 @@ Thank you for your business!`;
                   <label className="block text-[9px] font-extrabold text-stone uppercase mb-0.5">Rate ({currency})</label>
                   <input 
                     type="number" 
+                    step="any"
+                    min="0"
                     value={tempRate}
                     onChange={e => setTempRate(e.target.value)}
                     placeholder="0.00"
@@ -596,9 +650,10 @@ Thank you for your business!`;
                             <label className="block text-[8px] uppercase text-stone font-extrabold tracking-wider mb-0.5">Quantity</label>
                             <input 
                               type="number" 
-                              min="1"
+                              step="any"
+                              min="0"
                               value={it.quantity}
-                              onChange={e => updateItemField(idx, "quantity", Math.max(1, Number(e.target.value) || 1))}
+                              onChange={e => updateItemField(idx, "quantity", e.target.value)}
                               className="w-full px-2 py-1 border border-border-sand rounded-xl text-charcoal font-bold font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary bg-card-soft/40"
                             />
                           </div>
@@ -607,9 +662,10 @@ Thank you for your business!`;
                             <label className="block text-[8px] uppercase text-stone font-extrabold tracking-wider mb-0.5">Rate ({currency})</label>
                             <input 
                               type="number" 
+                              step="any"
                               min="0"
                               value={it.rate}
-                              onChange={e => updateItemField(idx, "rate", Math.max(0, Number(e.target.value) || 0))}
+                              onChange={e => updateItemField(idx, "rate", e.target.value)}
                               className="w-full px-2 py-1 border border-border-sand rounded-xl text-charcoal font-bold font-mono text-center focus:outline-none focus:ring-1 focus:ring-primary bg-card-soft/40"
                             />
                           </div>

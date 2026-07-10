@@ -4,6 +4,7 @@ import {
   FileText, Search, Plus, Trash2, Edit2, Check, RefreshCw,
   Printer, ArrowLeftRight, X, AlertCircle, ShoppingCart, Info, User
 } from "lucide-react";
+import { safeRound, roundCurrency, roundQuantity, safeAdd, safeSubtract, safeMultiply, safeDivide } from "../lib/mathUtils";
 
 interface QuotationsManagerProps {
   quotations: Quotation[];
@@ -89,20 +90,35 @@ export default function QuotationsManager({
     const material = materials.find(m => m.id === tempMaterialId);
     if (!material) return;
 
+    const qtyValNum = parseFloat(tempQty);
+    const rateValNum = parseFloat(tempRate) || material.defaultSalesRate;
+
+    // Validation
+    if (isNaN(qtyValNum) || qtyValNum <= 0 || tempQty.trim() === "") {
+      alert("Please enter a valid positive quantity.");
+      return;
+    }
+    if (isNaN(rateValNum) || rateValNum < 0 || tempRate.trim() === "") {
+      alert("Please enter a valid rate.");
+      return;
+    }
+
     // Check if item already exists
     const existingIdx = selectedItems.findIndex(it => it.materialId === tempMaterialId);
     if (existingIdx !== -1) {
       const updated = [...selectedItems];
-      updated[existingIdx].quantity += Number(tempQty) || 1;
-      updated[existingIdx].amount = updated[existingIdx].quantity * updated[existingIdx].rate;
+      const newQty = roundQuantity(Number(updated[existingIdx].quantity) + qtyValNum);
+      const newRate = Number(updated[existingIdx].rate);
+      updated[existingIdx].quantity = newQty;
+      updated[existingIdx].amount = safeMultiply(newQty, newRate);
       setSelectedItems(updated);
     } else {
       const newItem: QuoteItem = {
         materialId: tempMaterialId,
         name: material.name,
-        quantity: Number(tempQty) || 1,
-        rate: Number(tempRate) || material.defaultSalesRate,
-        amount: (Number(tempQty) || 1) * (Number(tempRate) || material.defaultSalesRate)
+        quantity: qtyValNum,
+        rate: rateValNum,
+        amount: safeMultiply(qtyValNum, rateValNum)
       };
       setSelectedItems([...selectedItems, newItem]);
     }
@@ -124,15 +140,34 @@ export default function QuotationsManager({
       return;
     }
 
-    const sub = selectedItems.reduce((sum, it) => sum + it.amount, 0);
-    const tax = Math.round(sub * (defaultGstRate / 100));
-    const tot = sub + tax;
+    // Validate selected items
+    for (const it of selectedItems) {
+      const q = parseFloat(String(it.quantity));
+      const r = parseFloat(String(it.rate));
+      if (isNaN(q) || q <= 0 || String(it.quantity).trim() === "") {
+        alert(`Please enter a valid positive quantity for item: ${it.name}`);
+        return;
+      }
+      if (isNaN(r) || r < 0 || String(it.rate).trim() === "") {
+        alert(`Please enter a valid rate for item: ${it.name}`);
+        return;
+      }
+    }
+
+    const sub = selectedItems.reduce((sum, it) => safeAdd(sum, it.amount), 0);
+    const tax = safeRound(sub * (defaultGstRate / 100), 2);
+    const tot = safeAdd(sub, tax);
 
     const data = {
       buyerId,
       date,
       dueDate,
-      items: selectedItems,
+      items: selectedItems.map(it => ({
+        ...it,
+        quantity: roundQuantity(Number(it.quantity)),
+        rate: roundCurrency(Number(it.rate)),
+        amount: safeMultiply(Number(it.quantity), Number(it.rate))
+      })),
       notes,
       status,
       subtotal: sub,
@@ -388,6 +423,8 @@ export default function QuotationsManager({
                   <label className="block text-[9px] font-extrabold text-stone uppercase mb-0.5">Quantity</label>
                   <input 
                     type="number" 
+                    step="any"
+                    min="0"
                     value={tempQty}
                     onChange={e => setTempQty(e.target.value)}
                     placeholder="1"
@@ -399,6 +436,8 @@ export default function QuotationsManager({
                   <label className="block text-[9px] font-extrabold text-stone uppercase mb-0.5">Unit Rate ({currency})</label>
                   <input 
                     type="number" 
+                    step="any"
+                    min="0"
                     value={tempRate}
                     onChange={e => setTempRate(e.target.value)}
                     placeholder="0.00"

@@ -4,6 +4,7 @@ import {
   Boxes, Search, Plus, Trash2, Edit2, ShieldAlert, TrendingDown,
   ArrowUpDown, X, Layers, ShoppingBag, Settings, RefreshCw, Eye
 } from "lucide-react";
+import { safeRound, roundCurrency, roundQuantity, safeAdd, safeSubtract, safeMultiply, safeDivide } from "../lib/mathUtils";
 
 interface InventoryManagerProps {
   materials: Material[];
@@ -107,15 +108,37 @@ export default function InventoryManager({
     e.preventDefault();
     if (!name.trim()) return;
 
+    const purchaseRateNum = parseFloat(defaultPurchaseRate);
+    const salesRateNum = parseFloat(defaultSalesRate);
+    const minStockLevelNum = parseFloat(minStockLevel);
+    const currentStockNum = parseFloat(currentStock);
+
+    if (isNaN(purchaseRateNum) || purchaseRateNum < 0 || defaultPurchaseRate.trim() === "") {
+      alert("Please enter a valid non-negative Purchase Rate.");
+      return;
+    }
+    if (isNaN(salesRateNum) || salesRateNum < 0 || defaultSalesRate.trim() === "") {
+      alert("Please enter a valid non-negative Sales Rate.");
+      return;
+    }
+    if (isNaN(minStockLevelNum) || minStockLevelNum < 0 || minStockLevel.trim() === "") {
+      alert("Please enter a valid non-negative Low Stock Warning Level.");
+      return;
+    }
+    if (isAdding && (isNaN(currentStockNum) || currentStockNum < 0 || currentStock.trim() === "")) {
+      alert("Please enter a valid non-negative Initial Stock Qty.");
+      return;
+    }
+
     const data = {
       name,
       sku: sku || `SKU-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
       category,
       unit,
-      defaultPurchaseRate: Number(defaultPurchaseRate) || 0,
-      defaultSalesRate: Number(defaultSalesRate) || 0,
-      minStockLevel: Number(minStockLevel) || 10,
-      currentStock: Number(currentStock) || 0
+      defaultPurchaseRate: roundCurrency(purchaseRateNum),
+      defaultSalesRate: roundCurrency(salesRateNum),
+      minStockLevel: roundQuantity(minStockLevelNum),
+      currentStock: roundQuantity(currentStockNum)
     };
 
     if (isEditing && selectedMaterialId) {
@@ -130,9 +153,14 @@ export default function InventoryManager({
   const handleAdjustSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedMaterialId) {
+      const qtyNum = parseFloat(adjQty);
+      if (isNaN(qtyNum) || qtyNum <= 0 || adjQty.trim() === "") {
+        alert("Please enter a valid positive Adjustment Quantity.");
+        return;
+      }
       onAdjustStock(selectedMaterialId, {
         type: adjType,
-        quantity: Number(adjQty) || 0,
+        quantity: roundQuantity(qtyNum),
         description: adjNotes || "Manual verification adjustment"
       });
       setIsAdjusting(false);
@@ -378,6 +406,8 @@ export default function InventoryManager({
                   <label className="block text-[10px] font-extrabold text-stone uppercase mb-0.5">Low Stock Warning Level</label>
                   <input 
                     type="number" 
+                    step="any"
+                    min="0"
                     value={minStockLevel}
                     onChange={e => setMinStockLevel(e.target.value)}
                     placeholder="50" 
@@ -390,6 +420,8 @@ export default function InventoryManager({
                     <label className="block text-[10px] font-extrabold text-stone uppercase mb-0.5">Initial Stock Qty</label>
                     <input 
                       type="number" 
+                      step="any"
+                      min="0"
                       value={currentStock}
                       onChange={e => setCurrentStock(e.target.value)}
                       placeholder="0" 
@@ -451,6 +483,8 @@ export default function InventoryManager({
                 <label className="block text-[10px] font-extrabold text-stone uppercase mb-0.5">Adjustment Quantity</label>
                 <input 
                   type="number" 
+                  step="any"
+                  min="0"
                   required
                   value={adjQty}
                   onChange={e => setAdjQty(e.target.value)}

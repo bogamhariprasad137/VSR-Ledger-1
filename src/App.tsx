@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { NavLink } from "react-router-dom";
+import { safeRound, roundCurrency, roundQuantity, safeAdd, safeSubtract, safeMultiply, safeDivide } from "./lib/mathUtils";
 
 // Components
 import NotesWidget from "./components/NotesWidget";
@@ -892,11 +893,11 @@ export default function App() {
       let newStock = prevStock;
 
       if (adj.type === "add") {
-        newStock += Number(adj.quantity);
+        newStock = roundQuantity(newStock + Number(adj.quantity));
       } else if (adj.type === "remove") {
-        newStock = Math.max(0, newStock - Number(adj.quantity));
+        newStock = Math.max(0, roundQuantity(newStock - Number(adj.quantity)));
       } else if (adj.type === "reconcile") {
-        newStock = Number(adj.quantity);
+        newStock = roundQuantity(Number(adj.quantity));
       }
 
       await supabase.from("materials").update({ current_stock: newStock }).eq("id", id);
@@ -904,7 +905,7 @@ export default function App() {
         material_id: id,
         date: new Date().toISOString().split("T")[0],
         type: adj.type,
-        quantity: Number(adj.quantity),
+        quantity: roundQuantity(Number(adj.quantity)),
         description: adj.description || "Manual reconciliation adjustment"
       }]);
 
@@ -919,9 +920,9 @@ export default function App() {
   const handleAddQuotation = async (qData: Omit<Quotation, "id" | "quoteNumber">) => {
     if (!supabase) return;
     try {
-      const subtotal = qData.items.reduce((sum, it) => sum + (Number(it.rate) * Number(it.quantity)), 0);
-      const taxAmount = Math.round(subtotal * (settings.defaultGstRate / 100));
-      const total = subtotal + taxAmount;
+      const subtotal = qData.items.reduce((sum, it) => safeAdd(sum, safeMultiply(it.rate, it.quantity)), 0);
+      const taxAmount = safeRound(subtotal * (settings.defaultGstRate / 100), 2);
+      const total = safeAdd(subtotal, taxAmount);
 
       const { data: inserted, error } = await supabase.from("quotations").insert([{
         buyer_id: qData.buyerId,
@@ -939,9 +940,9 @@ export default function App() {
         const itemRows = qData.items.map(it => ({
           quotation_id: inserted[0].id,
           material_id: it.materialId,
-          quantity: Number(it.quantity),
-          rate: Number(it.rate),
-          amount: Number(it.quantity) * Number(it.rate)
+          quantity: roundQuantity(Number(it.quantity)),
+          rate: roundCurrency(Number(it.rate)),
+          amount: safeMultiply(it.quantity, it.rate)
         }));
         await supabase.from("quotation_items").insert(itemRows);
       }
@@ -969,9 +970,9 @@ export default function App() {
       if (updates.dueDate !== undefined) mapped.due_date = updates.dueDate;
 
       if (updates.items !== undefined) {
-        const subtotal = updates.items.reduce((sum, it) => sum + (Number(it.rate) * Number(it.quantity)), 0);
-        const taxAmount = Math.round(subtotal * (settings.defaultGstRate / 100));
-        const total = subtotal + taxAmount;
+        const subtotal = updates.items.reduce((sum, it) => safeAdd(sum, safeMultiply(it.rate, it.quantity)), 0);
+        const taxAmount = safeRound(subtotal * (settings.defaultGstRate / 100), 2);
+        const total = safeAdd(subtotal, taxAmount);
         mapped.subtotal = subtotal;
         mapped.tax_amount = taxAmount;
         mapped.total = total;
@@ -980,9 +981,9 @@ export default function App() {
         const itemRows = updates.items.map(it => ({
           quotation_id: id,
           material_id: it.materialId,
-          quantity: Number(it.quantity),
-          rate: Number(it.rate),
-          amount: Number(it.quantity) * Number(it.rate)
+          quantity: roundQuantity(Number(it.quantity)),
+          rate: roundCurrency(Number(it.rate)),
+          amount: safeMultiply(it.quantity, it.rate)
         }));
         await supabase.from("quotation_items").insert(itemRows);
       }
@@ -1001,13 +1002,17 @@ export default function App() {
       const { data: qData } = await supabase.from("quotations").select("*, quotation_items(*)").eq("id", id).single();
       if (!qData) throw new Error("Quotation not found");
 
+      const subtotal = roundCurrency(Number(qData.subtotal));
+      const taxAmount = roundCurrency(Number(qData.tax_amount));
+      const total = roundCurrency(Number(qData.total));
+
       const invoiceRow = {
         buyer_id: qData.buyer_id,
         date: new Date().toISOString().split("T")[0],
         due_date: qData.due_date || null,
-        subtotal: Number(qData.subtotal),
-        tax_amount: Number(qData.tax_amount),
-        total: Number(qData.total),
+        subtotal: subtotal,
+        tax_amount: taxAmount,
+        total: total,
         paid_amount: 0,
         status: "Unpaid",
         notes: `Converted from quotation ${qData.quote_number}`
@@ -1017,21 +1022,28 @@ export default function App() {
       if (invError) throw new Error(invError.message);
 
       if (insertedInv && insertedInv[0]) {
-        const invoiceItems = qData.quotation_items.map((it: any) => ({
-          invoice_id: insertedInv[0].id,
-          material_id: it.material_id,
-          quantity: Number(it.quantity),
-          rate: Number(it.rate),
-          tax_rate: settings.defaultGstRate,
-          subtotal: Number(it.amount),
-          tax_amount: Math.round(Number(it.amount) * (settings.defaultGstRate / 100)),
-          total: Number(it.amount) + Math.round(Number(it.amount) * (settings.defaultGstRate / 100)),
-          transportation_amount: 0
-        }));
+        const invoiceItems = qData.quotation_items.map((it: any) => {
+          const qty = roundQuantity(Number(it.quantity));
+          const rate = roundCurrency(Number(it.rate));
+          const itemSub = safeMultiply(qty, rate);
+          const itemTax = safeRound(itemSub * (settings.defaultGstRate / 100), 2);
+          
+          return {
+            invoice_id: insertedInv[0].id,
+            material_id: it.material_id,
+            quantity: qty,
+            rate: rate,
+            tax_rate: settings.defaultGstRate,
+            subtotal: itemSub,
+            tax_amount: itemTax,
+            total: safeAdd(itemSub, itemTax),
+            transportation_amount: 0
+          };
+        });
         await supabase.from("invoice_items").insert(invoiceItems);
 
         const { data: bData } = await supabase.from("buyers").select("balance").eq("id", qData.buyer_id).single();
-        const newBalance = Number(bData?.balance || 0) + Number(qData.total);
+        const newBalance = safeAdd(Number(bData?.balance || 0), total);
         await supabase.from("buyers").update({ balance: newBalance }).eq("id", qData.buyer_id);
 
         await supabase.from("buyer_ledger").insert([{
@@ -1039,7 +1051,7 @@ export default function App() {
           date: new Date().toISOString().split("T")[0],
           type: "invoice",
           reference_id: insertedInv[0].id,
-          amount: Number(qData.total),
+          amount: total,
           description: `Invoice billing generated: ${insertedInv[0].invoice_number}`,
           balance_after: newBalance
         }]);
@@ -1078,12 +1090,12 @@ export default function App() {
   const handleAddInvoice = async (invData: Omit<Invoice, "id" | "invoiceNumber">) => {
     if (!supabase) return;
     try {
-      const subtotal = invData.items.reduce((sum, it) => sum + (Number(it.rate) * Number(it.quantity)), 0);
-      const item_level_transportation = invData.items.reduce((sum, it) => sum + Number(it.transportation_amount || 0), 0);
+      const subtotal = invData.items.reduce((sum, it) => safeAdd(sum, safeMultiply(it.rate, it.quantity)), 0);
+      const item_level_transportation = invData.items.reduce((sum, it) => safeAdd(sum, it.transportation_amount || 0), 0);
       const global_transportation = invData.transport ? Math.max(0, Number(invData.transport.amount || 0)) : 0;
-      const total_transportation = item_level_transportation + global_transportation;
-      const taxAmount = Math.round(subtotal * (settings.defaultGstRate / 100));
-      const total = subtotal + taxAmount + total_transportation;
+      const total_transportation = safeAdd(item_level_transportation, global_transportation);
+      const taxAmount = safeRound(subtotal * (settings.defaultGstRate / 100), 2);
+      const total = safeAdd(safeAdd(subtotal, taxAmount), total_transportation);
       const invoiceDate = invData.date || new Date().toISOString().split("T")[0];
 
       const invoiceRow = {
@@ -1108,14 +1120,15 @@ export default function App() {
 
       if (insertedInv && insertedInv[0]) {
         const itemRows = invData.items.map(it => {
-          const qty = Number(it.quantity);
-          const rate = Number(it.rate);
-          const transAmt = Number(it.transportation_amount || 0);
-          const purchase_rate = Number(it.purchase_rate || 0);
-          const sellingAmount = qty * rate;
-          const purchaseAmount = qty * purchase_rate;
-          const profit = sellingAmount - purchaseAmount - transAmt;
+          const qty = roundQuantity(Number(it.quantity));
+          const rate = roundCurrency(Number(it.rate));
+          const transAmt = roundCurrency(Number(it.transportation_amount || 0));
+          const purchase_rate = roundCurrency(Number(it.purchase_rate || 0));
+          const sellingAmount = safeMultiply(qty, rate);
+          const purchaseAmount = safeMultiply(qty, purchase_rate);
+          const profit = safeSubtract(safeSubtract(sellingAmount, purchaseAmount), transAmt);
           const margin_percentage = sellingAmount > 0 ? (profit / sellingAmount) * 100 : 0;
+          const tax_amt = safeRound(sellingAmount * (settings.defaultGstRate / 100), 2);
 
           return {
             invoice_id: insertedInv[0].id,
@@ -1124,21 +1137,21 @@ export default function App() {
             rate: rate,
             tax_rate: settings.defaultGstRate,
             subtotal: sellingAmount,
-            tax_amount: Math.round(sellingAmount * (settings.defaultGstRate / 100)),
-            total: sellingAmount + Math.round(sellingAmount * (settings.defaultGstRate / 100)) + transAmt,
+            tax_amount: tax_amt,
+            total: safeAdd(safeAdd(sellingAmount, tax_amt), transAmt),
             transportation_amount: transAmt,
             transport_supplier_id: it.transport_supplier_id || null,
             transportation_notes: it.transportation_notes || "",
             purchase_rate: purchase_rate,
             selling_rate: rate,
             profit: profit,
-            margin_percentage: Math.round(margin_percentage * 100) / 100
+            margin_percentage: safeRound(margin_percentage, 2)
           };
         });
         await supabase.from("invoice_items").insert(itemRows);
 
         const { data: bData } = await supabase.from("buyers").select("balance").eq("id", invData.buyerId).single();
-        const newBalance = Number(bData?.balance || 0) + total;
+        const newBalance = safeAdd(Number(bData?.balance || 0), total);
         await supabase.from("buyers").update({ balance: newBalance }).eq("id", invData.buyerId);
 
         await supabase.from("buyer_ledger").insert([{
@@ -1274,10 +1287,10 @@ export default function App() {
       const { data: inv } = await supabase.from("invoices").select("*, invoice_items(*)").eq("id", id).single();
       if (!inv) throw new Error("Invoice not found");
 
-      const balanceDue = Number(inv.total) - Number(inv.paid_amount);
+      const balanceDue = safeSubtract(Number(inv.total), Number(inv.paid_amount));
 
       const { data: bData } = await supabase.from("buyers").select("balance").eq("id", inv.buyer_id).single();
-      const newBalance = Math.max(0, Number(bData?.balance || 0) - balanceDue);
+      const newBalance = Math.max(0, safeSubtract(Number(bData?.balance || 0), balanceDue));
       await supabase.from("buyers").update({ balance: newBalance }).eq("id", inv.buyer_id);
 
       await supabase.from("buyer_ledger").insert([{
@@ -1292,13 +1305,13 @@ export default function App() {
 
       for (const it of inv.invoice_items) {
         const { data: mat } = await supabase.from("materials").select("current_stock").eq("id", it.material_id).single();
-        const newStock = Number(mat?.current_stock || 0) + Number(it.quantity);
+        const newStock = roundQuantity(Number(mat?.current_stock || 0) + Number(it.quantity));
         await supabase.from("materials").update({ current_stock: newStock }).eq("id", it.material_id);
         await supabase.from("inventory_transactions").insert([{
           material_id: it.material_id,
           date: new Date().toISOString().split("T")[0],
           type: "add",
-          quantity: Number(it.quantity),
+          quantity: roundQuantity(Number(it.quantity)),
           description: `Restored stock on Invoice Deletion: ${inv.invoice_number}`
         }]);
       }
@@ -1397,19 +1410,19 @@ export default function App() {
     const today = new Date().toISOString().split("T")[0];
     return invoices
       .filter(inv => inv.date === today)
-      .reduce((sum, inv) => sum + inv.total, 0);
+      .reduce((sum, inv) => safeAdd(sum, inv.total), 0);
   })();
 
   const monthlySales = (() => {
     const currentMonth = new Date().toISOString().substring(0, 7); // YYYY-MM
     return invoices
       .filter(inv => inv.date.startsWith(currentMonth))
-      .reduce((sum, inv) => sum + inv.total, 0);
+      .reduce((sum, inv) => safeAdd(sum, inv.total), 0);
   })();
 
-  const totalOutstandingReceivables = buyers.reduce((sum, b) => sum + b.balance, 0);
-  const totalOutstandingPayables = suppliers.reduce((sum, s) => sum + s.outstandingPayable, 0);
-  const grossSalesTotal = invoices.reduce((sum, inv) => sum + inv.total, 0);
+  const totalOutstandingReceivables = buyers.reduce((sum, b) => safeAdd(sum, b.balance), 0);
+  const totalOutstandingPayables = suppliers.reduce((sum, s) => safeAdd(sum, s.outstandingPayable), 0);
+  const grossSalesTotal = invoices.reduce((sum, inv) => safeAdd(sum, inv.total), 0);
 
   // Quick Action Wizards
   const triggerQuickInvoice = () => {
