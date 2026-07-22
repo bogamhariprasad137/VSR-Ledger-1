@@ -12,7 +12,7 @@ interface InvoicesManagerProps {
   buyers: Buyer[];
   materials: Material[];
   suppliers: Supplier[];
-  onAddInvoice: (invoice: Omit<Invoice, "id" | "invoiceNumber">) => void;
+  onAddInvoice: (invoice: Omit<Invoice, "id" | "invoiceNumber">) => Promise<Invoice | null | void> | void;
   onAddPayment: (id: string, payment: { amount: number; method: string; referenceNo?: string; notes?: string }) => void;
   onAddAttachment: (id: string, attachment: Omit<Attachment, "id" | "uploadedAt">) => void;
   onDuplicateInvoice: (id: string) => void;
@@ -183,7 +183,7 @@ export default function InvoicesManager({
     setSelectedItems(selectedItems.filter((_, i) => i !== idx));
   };
 
-  const handleSaveInvoice = (e: React.FormEvent) => {
+  const handleSaveInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!buyerId || selectedItems.length === 0) {
       alert("Please select a buyer company and insert material items.");
@@ -210,7 +210,7 @@ export default function InvoicesManager({
     const taxAmt = safeRound(materialSubtotal * (defaultGstRate / 100), 2);
     const grossTotal = safeAdd(safeAdd(materialSubtotal, taxAmt), transportTotal);
 
-    onAddInvoice({
+    const createdInvoice = await onAddInvoice({
       buyerId,
       date,
       items: selectedItems.map(it => ({
@@ -240,6 +240,9 @@ export default function InvoicesManager({
     });
 
     setIsAdding(false);
+    if (createdInvoice && createdInvoice.id) {
+      setSelectedInvoiceId(createdInvoice.id);
+    }
   };
 
   const handleMaterialSelect = (id: string) => {

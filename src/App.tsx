@@ -1087,8 +1087,11 @@ export default function App() {
   };
 
   // 6. Invoices CRUD
-  const handleAddInvoice = async (invData: Omit<Invoice, "id" | "invoiceNumber">) => {
-    if (!supabase) return;
+  const handleAddInvoice = async (invData: Omit<Invoice, "id" | "invoiceNumber">): Promise<Invoice | null> => {
+    if (!supabase) {
+      showToast("Database connection unavailable.", "error");
+      return null;
+    }
     try {
       const subtotal = invData.items.reduce((sum, it) => safeAdd(sum, safeMultiply(it.rate, it.quantity)), 0);
       const item_level_transportation = invData.items.reduce((sum, it) => safeAdd(sum, it.transportation_amount || 0), 0);
@@ -1118,20 +1121,21 @@ export default function App() {
       const { data: insertedInv, error: invError } = await supabase.from("invoices").insert([invoiceRow]).select();
       if (invError) throw new Error(invError.message);
 
+      let createdInvoiceObj: Invoice | null = null;
+
       if (insertedInv && insertedInv[0]) {
+        const newInvId = insertedInv[0].id;
+        const newInvNo = insertedInv[0].invoice_number;
+
         const itemRows = invData.items.map(it => {
           const qty = roundQuantity(Number(it.quantity));
           const rate = roundCurrency(Number(it.rate));
           const transAmt = roundCurrency(Number(it.transportation_amount || 0));
-          const purchase_rate = roundCurrency(Number(it.purchase_rate || 0));
           const sellingAmount = safeMultiply(qty, rate);
-          const purchaseAmount = safeMultiply(qty, purchase_rate);
-          const profit = safeSubtract(safeSubtract(sellingAmount, purchaseAmount), transAmt);
-          const margin_percentage = sellingAmount > 0 ? (profit / sellingAmount) * 100 : 0;
           const tax_amt = safeRound(sellingAmount * (settings.defaultGstRate / 100), 2);
 
           return {
-            invoice_id: insertedInv[0].id,
+            invoice_id: newInvId,
             material_id: it.materialId,
             quantity: qty,
             rate: rate,
@@ -1139,16 +1143,12 @@ export default function App() {
             subtotal: sellingAmount,
             tax_amount: tax_amt,
             total: safeAdd(safeAdd(sellingAmount, tax_amt), transAmt),
-            transportation_amount: transAmt,
-            transport_supplier_id: it.transport_supplier_id || null,
-            transportation_notes: it.transportation_notes || "",
-            purchase_rate: purchase_rate,
-            selling_rate: rate,
-            profit: profit,
-            margin_percentage: safeRound(margin_percentage, 2)
+            transportation_amount: transAmt
           };
         });
-        await supabase.from("invoice_items").insert(itemRows);
+
+        const { error: itemsErr } = await supabase.from("invoice_items").insert(itemRows);
+        if (itemsErr) throw new Error(itemsErr.message);
 
         const { data: bData } = await supabase.from("buyers").select("balance").eq("id", invData.buyerId).single();
         const newBalance = safeAdd(Number(bData?.balance || 0), total);
@@ -1158,17 +1158,39 @@ export default function App() {
           buyer_id: invData.buyerId,
           date: invoiceDate,
           type: "invoice",
-          reference_id: insertedInv[0].id,
+          reference_id: newInvId,
           amount: total,
-          description: `Invoice billing generated: ${insertedInv[0].invoice_number}`,
+          description: `Invoice billing generated: ${newInvNo || newInvId}`,
           balance_after: newBalance
         }]);
+
+        createdInvoiceObj = {
+          id: newInvId,
+          invoiceNumber: newInvNo || "INV-NEW",
+          buyerId: invData.buyerId,
+          date: invoiceDate,
+          dueDate: invData.dueDate || "",
+          subtotal,
+          taxAmount,
+          total,
+          balanceDue: total,
+          status: "unpaid",
+          notes: invData.notes || "",
+          transport: invData.transport,
+          attachments: [],
+          items: invData.items,
+          payments: []
+        };
       }
 
       await fetchAllData();
-      saveLogs("Create", "Invoices", "Logged active sales invoice & dispatched stock items");
-    } catch (e) {
-      console.error(e);
+      saveLogs("Create", "Invoices", `Logged active sales invoice ${createdInvoiceObj?.invoiceNumber || ""} & dispatched stock items`);
+      showToast(`Invoice generated successfully: ${createdInvoiceObj?.invoiceNumber || ""}`, "success");
+      return createdInvoiceObj;
+    } catch (e: any) {
+      console.error("Failed to add invoice:", e);
+      showToast(e.message || "Failed to generate invoice.", "error");
+      return null;
     }
   };
 
@@ -1193,8 +1215,10 @@ export default function App() {
 
       await fetchAllData();
       saveLogs("Payment", "Invoices", `Cleared outstanding ${settings.currency}${payment.amount} using ${payment.method} on invoice ${id}`);
-    } catch (e) {
-      console.error(e);
+      showToast("Payment recorded successfully.", "success");
+    } catch (e: any) {
+      console.error("Failed to add payment:", e);
+      showToast(e.message || "Failed to record payment.", "error");
     }
   };
 
@@ -1212,8 +1236,10 @@ export default function App() {
 
       await fetchAllData();
       saveLogs("Attachment", "Invoices", `Uploaded custom document attachment to invoice ${id}`);
-    } catch (e) {
-      console.error(e);
+      showToast("Attachment uploaded successfully.", "success");
+    } catch (e: any) {
+      console.error("Failed to add attachment:", e);
+      showToast(e.message || "Failed to upload attachment.", "error");
     }
   };
 
@@ -1240,7 +1266,7 @@ export default function App() {
       if (invError) throw new Error(invError.message);
 
       if (inserted && inserted[0]) {
-        const itemRows = inv.invoice_items.map((it: any) => ({
+        const itemRows = (inv.invoice_items || []).map((it: any) => ({
           invoice_id: inserted[0].id,
           material_id: it.material_id,
           quantity: Number(it.quantity),
@@ -1249,15 +1275,10 @@ export default function App() {
           subtotal: Number(it.subtotal),
           tax_amount: Number(it.tax_amount),
           total: Number(it.total),
-          transportation_amount: Number(it.transportation_amount),
-          transport_supplier_id: it.transport_supplier_id || null,
-          transportation_notes: it.transportation_notes || "",
-          purchase_rate: Number(it.purchase_rate),
-          selling_rate: Number(it.selling_rate),
-          profit: Number(it.profit),
-          margin_percentage: Number(it.margin_percentage)
+          transportation_amount: Number(it.transportation_amount || 0)
         }));
-        await supabase.from("invoice_items").insert(itemRows);
+        const { error: itemsErr } = await supabase.from("invoice_items").insert(itemRows);
+        if (itemsErr) throw new Error(itemsErr.message);
 
         const { data: bData } = await supabase.from("buyers").select("balance").eq("id", inv.buyer_id).single();
         const newBalance = Number(bData?.balance || 0) + Number(inv.total);
@@ -1274,10 +1295,12 @@ export default function App() {
         }]);
       }
 
-          await fetchAllData();
-          saveLogs("Duplicate", "Invoices", `Duplicated invoice ${inv.invoice_number} to new sheet`);
-    } catch (e) {
-      console.error(e);
+      await fetchAllData();
+      saveLogs("Duplicate", "Invoices", `Duplicated invoice ${inv.invoice_number} to new sheet`);
+      showToast(`Invoice duplicated successfully.`, "success");
+    } catch (e: any) {
+      console.error("Failed to duplicate invoice:", e);
+      showToast(e.message || "Failed to duplicate invoice.", "error");
     }
   };
 
