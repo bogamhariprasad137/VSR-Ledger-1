@@ -1648,6 +1648,23 @@ app.delete("/api/quotations/:id", (req, res) => {
   res.json({ success: true });
 });
 
+// Helper to generate unique, sequential invoice numbers using MAX numeric suffix
+const getNextInvoiceNumber = (invoices: Invoice[]): string => {
+  const year = new Date().getFullYear();
+  const prefix = `VSR-${year}-`;
+  let maxNum = 0;
+  (invoices || []).forEach(inv => {
+    if (inv.invoiceNumber && inv.invoiceNumber.startsWith(prefix)) {
+      const parts = inv.invoiceNumber.split("-");
+      const num = parseInt(parts[parts.length - 1], 10);
+      if (!isNaN(num) && num > maxNum) {
+        maxNum = num;
+      }
+    }
+  });
+  return `${prefix}${String(maxNum + 1).padStart(4, "0")}`;
+};
+
 // 7. Invoice Module
 app.get("/api/invoices", (req, res) => {
   db = loadDB();
@@ -1658,7 +1675,7 @@ app.post("/api/invoices", (req, res) => {
   db = loadDB();
   const { buyerId, date, items, notes, transport } = req.body;
 
-  const invoiceNumber = `VSR-2026-${String(db.invoices.length + 1).padStart(4, "0")}`;
+  const invoiceNumber = getNextInvoiceNumber(db.invoices);
   
   // Calculate Totals and store details
   const subtotal = items.reduce((sum: number, it: any) => sum + (Number(it.rate) * Number(it.quantity)), 0);
@@ -1845,7 +1862,7 @@ app.post("/api/invoices/:id/duplicate", (req, res) => {
   const src = db.invoices.find(inv => inv.id === req.params.id);
 
   if (src) {
-    const invoiceNumber = `VSR-2026-${String(db.invoices.length + 1).padStart(4, "0")}`;
+    const invoiceNumber = getNextInvoiceNumber(db.invoices);
     const newInvoice: Invoice = {
       ...src,
       id: `inv_${Date.now()}`,

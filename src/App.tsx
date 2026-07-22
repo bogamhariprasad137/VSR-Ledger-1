@@ -1118,8 +1118,36 @@ export default function App() {
         } : null
       };
 
-      const { data: insertedInv, error: invError } = await supabase.from("invoices").insert([invoiceRow]).select();
-      if (invError) throw new Error(invError.message);
+      let insertedInv: any[] | null = null;
+      const { data, error: invError } = await supabase.from("invoices").insert([invoiceRow]).select();
+
+      if (invError) {
+        const errStr = (invError.message || "").toLowerCase();
+        if (errStr.includes("invoices_invoice_number_key") || errStr.includes("duplicate key")) {
+          console.warn("Invoice number collision detected. Calculating next available sequence number...");
+          const { data: existingInvoices } = await supabase.from("invoices").select("invoice_number");
+          const year = new Date().getFullYear();
+          const prefix = `VSR-${year}-`;
+          let maxNum = 0;
+          (existingInvoices || []).forEach((inv: any) => {
+            if (inv.invoice_number && inv.invoice_number.startsWith(prefix)) {
+              const parts = inv.invoice_number.split("-");
+              const num = parseInt(parts[parts.length - 1], 10);
+              if (!isNaN(num) && num > maxNum) maxNum = num;
+            }
+          });
+          const retryInvoiceNumber = `${prefix}${String(maxNum + 1).padStart(4, "0")}`;
+          const retryRow = { ...invoiceRow, invoice_number: retryInvoiceNumber };
+          
+          const { data: retryData, error: retryError } = await supabase.from("invoices").insert([retryRow]).select();
+          if (retryError) throw new Error(retryError.message);
+          insertedInv = retryData;
+        } else {
+          throw new Error(invError.message);
+        }
+      } else {
+        insertedInv = data;
+      }
 
       let createdInvoiceObj: Invoice | null = null;
 

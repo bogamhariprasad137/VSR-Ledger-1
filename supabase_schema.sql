@@ -302,20 +302,40 @@ FOR EACH ROW EXECUTE FUNCTION touch_updated_timestamp();
 CREATE OR REPLACE FUNCTION generate_document_number()
 RETURNS TRIGGER AS $$
 DECLARE
-    seq_num INT;
+    max_num INT := 0;
     prefix VARCHAR(10);
     year_prefix VARCHAR(4);
 BEGIN
     year_prefix := to_char(CURRENT_DATE, 'YYYY');
     
     IF TG_TABLE_NAME = 'invoices' THEN
-        prefix := 'VSR-' || year_prefix || '-';
-        SELECT COALESCE(COUNT(*), 0) + 1 INTO seq_num FROM public.invoices WHERE to_char(created_at, 'YYYY') = year_prefix;
-        NEW.invoice_number := prefix || lpad(seq_num::text, 4, '0');
+        IF NEW.invoice_number IS NULL OR NEW.invoice_number = '' THEN
+            prefix := 'VSR-' || year_prefix || '-';
+            SELECT COALESCE(
+                MAX(
+                    CAST(substring(invoice_number from 'VSR-[0-9]{4}-([0-9]+)') AS INTEGER)
+                ), 
+                0
+            ) INTO max_num
+            FROM public.invoices
+            WHERE invoice_number LIKE prefix || '%';
+            
+            NEW.invoice_number := prefix || lpad((max_num + 1)::text, 4, '0');
+        END IF;
     ELSIF TG_TABLE_NAME = 'quotations' THEN
-        prefix := 'QT-' || year_prefix || '-';
-        SELECT COALESCE(COUNT(*), 0) + 1 INTO seq_num FROM public.quotations WHERE to_char(created_at, 'YYYY') = year_prefix;
-        NEW.quote_number := prefix || lpad(seq_num::text, 4, '0');
+        IF NEW.quote_number IS NULL OR NEW.quote_number = '' THEN
+            prefix := 'QT-' || year_prefix || '-';
+            SELECT COALESCE(
+                MAX(
+                    CAST(substring(quote_number from 'QT-[0-9]{4}-([0-9]+)') AS INTEGER)
+                ), 
+                0
+            ) INTO max_num
+            FROM public.quotations
+            WHERE quote_number LIKE prefix || '%';
+            
+            NEW.quote_number := prefix || lpad((max_num + 1)::text, 4, '0');
+        END IF;
     END IF;
     
     RETURN NEW;
