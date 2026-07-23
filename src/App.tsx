@@ -23,6 +23,33 @@ import InvoicesManager from "./components/InvoicesManager";
 import ReportsManager from "./components/ReportsManager";
 import SettingsManager from "./components/SettingsManager";
 
+const generateNextInvoiceNumber = async (supabase: any): Promise<string> => {
+  const year = new Date().getFullYear();
+  const prefix = `VSR-${year}-`;
+  
+  const { data: latestInvs } = await supabase
+    .from("invoices")
+    .select("invoice_number")
+    .like("invoice_number", `${prefix}%`)
+    .order("created_at", { ascending: false });
+    
+  let maxNum = 0;
+  if (latestInvs && latestInvs.length > 0) {
+    latestInvs.forEach((inv: any) => {
+      if (inv.invoice_number) {
+        const parts = inv.invoice_number.split("-");
+        const numStr = parts[parts.length - 1];
+        const num = parseInt(numStr, 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    });
+  }
+  
+  return `${prefix}${String(maxNum + 1).padStart(4, "0")}`;
+};
+
 export default function App() {
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -1006,8 +1033,10 @@ export default function App() {
       const taxAmount = roundCurrency(Number(qData.tax_amount));
       const total = roundCurrency(Number(qData.total));
 
+      const nextInvoiceNumber = await generateNextInvoiceNumber(supabase);
       const invoiceRow = {
         buyer_id: qData.buyer_id,
+        invoice_number: nextInvoiceNumber,
         date: new Date().toISOString().split("T")[0],
         due_date: qData.due_date || null,
         subtotal: subtotal,
@@ -1018,8 +1047,23 @@ export default function App() {
         notes: `Converted from quotation ${qData.quote_number}`
       };
 
-      const { data: insertedInv, error: invError } = await supabase.from("invoices").insert([invoiceRow]).select();
-      if (invError) throw new Error(invError.message);
+      let insertedInv: any[] | null = null;
+      const { data, error: invError } = await supabase.from("invoices").insert([invoiceRow]).select();
+      if (invError) {
+        const errStr = (invError.message || "").toLowerCase();
+        if (errStr.includes("invoices_invoice_number_key") || errStr.includes("duplicate key")) {
+          console.warn("Invoice number collision in conversion. Retrying...");
+          const retryInvoiceNumber = await generateNextInvoiceNumber(supabase);
+          const retryRow = { ...invoiceRow, invoice_number: retryInvoiceNumber };
+          const { data: retryData, error: retryError } = await supabase.from("invoices").insert([retryRow]).select();
+          if (retryError) throw new Error(retryError.message);
+          insertedInv = retryData;
+        } else {
+          throw new Error(invError.message);
+        }
+      } else {
+        insertedInv = data;
+      }
 
       if (insertedInv && insertedInv[0]) {
         const invoiceItems = qData.quotation_items.map((it: any) => {
@@ -1101,8 +1145,10 @@ export default function App() {
       const total = safeAdd(safeAdd(subtotal, taxAmount), total_transportation);
       const invoiceDate = invData.date || new Date().toISOString().split("T")[0];
 
+      const nextInvoiceNumber = await generateNextInvoiceNumber(supabase);
       const invoiceRow = {
         buyer_id: invData.buyerId,
+        invoice_number: nextInvoiceNumber,
         date: invoiceDate,
         due_date: invData.dueDate || null,
         subtotal,
@@ -1124,19 +1170,8 @@ export default function App() {
       if (invError) {
         const errStr = (invError.message || "").toLowerCase();
         if (errStr.includes("invoices_invoice_number_key") || errStr.includes("duplicate key")) {
-          console.warn("Invoice number collision detected. Calculating next available sequence number...");
-          const { data: existingInvoices } = await supabase.from("invoices").select("invoice_number");
-          const year = new Date().getFullYear();
-          const prefix = `VSR-${year}-`;
-          let maxNum = 0;
-          (existingInvoices || []).forEach((inv: any) => {
-            if (inv.invoice_number && inv.invoice_number.startsWith(prefix)) {
-              const parts = inv.invoice_number.split("-");
-              const num = parseInt(parts[parts.length - 1], 10);
-              if (!isNaN(num) && num > maxNum) maxNum = num;
-            }
-          });
-          const retryInvoiceNumber = `${prefix}${String(maxNum + 1).padStart(4, "0")}`;
+          console.warn("Invoice number collision detected. Re-calculating next available sequence number...");
+          const retryInvoiceNumber = await generateNextInvoiceNumber(supabase);
           const retryRow = { ...invoiceRow, invoice_number: retryInvoiceNumber };
           
           const { data: retryData, error: retryError } = await supabase.from("invoices").insert([retryRow]).select();
@@ -1277,8 +1312,10 @@ export default function App() {
       const { data: inv, error: fetchErr } = await supabase.from("invoices").select("*, invoice_items(*)").eq("id", id).single();
       if (fetchErr || !inv) throw new Error("Source invoice not found");
 
+      const nextInvoiceNumber = await generateNextInvoiceNumber(supabase);
       const invoiceRow = {
         buyer_id: inv.buyer_id,
+        invoice_number: nextInvoiceNumber,
         date: new Date().toISOString().split("T")[0],
         due_date: inv.due_date || null,
         subtotal: Number(inv.subtotal),
@@ -1290,8 +1327,23 @@ export default function App() {
         transport: inv.transport || null
       };
 
-      const { data: inserted, error: invError } = await supabase.from("invoices").insert([invoiceRow]).select();
-      if (invError) throw new Error(invError.message);
+      let inserted: any[] | null = null;
+      const { data: insertData, error: invError } = await supabase.from("invoices").insert([invoiceRow]).select();
+      if (invError) {
+        const errStr = (invError.message || "").toLowerCase();
+        if (errStr.includes("invoices_invoice_number_key") || errStr.includes("duplicate key")) {
+          console.warn("Invoice number collision in duplicate. Retrying...");
+          const retryInvoiceNumber = await generateNextInvoiceNumber(supabase);
+          const retryRow = { ...invoiceRow, invoice_number: retryInvoiceNumber };
+          const { data: retryData, error: retryError } = await supabase.from("invoices").insert([retryRow]).select();
+          if (retryError) throw new Error(retryError.message);
+          inserted = retryData;
+        } else {
+          throw new Error(invError.message);
+        }
+      } else {
+        inserted = insertData;
+      }
 
       if (inserted && inserted[0]) {
         const itemRows = (inv.invoice_items || []).map((it: any) => ({
